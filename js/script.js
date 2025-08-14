@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Referências do Firebase (Seu código de configuração)
     const firebaseConfig = {
         apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
         authDomain: "beneficios-eventuais-suas.firebaseapp.com",
@@ -17,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const beneficiosCollection = db.collection('beneficios');
 
     let users = JSON.parse(localStorage.getItem('users')) || [];
-    const adminUserIndex = users.findIndex(u => u.username === 'admin');
+    const adminUserIndex = users.findIndex(u => u.username === 'vitorfurtadoo');
     if (adminUserIndex === -1) {
         users.push({ 
             username: 'vitorfurtadoo', 
@@ -27,10 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
             lastLogin: '' 
         });
     } else {
-        if (users[adminUserIndex].username === 'admin') {
-            users[adminUserIndex].username = 'vitorfurtadoo';
-            users[adminUserIndex].password = 'Biologo123!';
-        }
         users[adminUserIndex].active = true;
     }
     saveUsers();
@@ -55,8 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const editForm = document.getElementById('editForm');
     const adminForm = document.getElementById('adminForm');
     const usersTableBody = document.querySelector('#usersTable tbody');
-    const logoutBtn = document.getElementById('logout-btn');
-
 
     const deleteBtnEdit = document.querySelector('.delete-btn-edit');
     if (deleteBtnEdit) {
@@ -98,7 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clearFilterBtn) { clearFilterBtn.addEventListener('click', clearFilters); }
         if (separateBtn) { separateBtn.addEventListener('click', toggleDateSeparation); }
         if (exportBtn) { exportBtn.addEventListener('click', exportarCSV); }
-        if (logoutBtn) { logoutBtn.addEventListener('click', handleLogout); }
 
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
@@ -108,11 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.location.pathname.endsWith('login.html')) {
             checkLoginStatus();
         }
-    }
-    
-    function handleLogout() {
-        localStorage.removeItem('currentUser');
-        window.location.href = 'login.html';
     }
 
     function checkLoginStatus() {
@@ -234,7 +221,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Funções de interação com o Firestore
     async function fetchBeneficios() {
         const snapshot = await db.collection('beneficios').get();
         const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -414,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         beneficio.beneficiario, beneficio.cpf, beneficio.data, beneficio.valor,
                         beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
                         beneficio.responsavel, beneficio.status, beneficio.observacoes,
-                        beneficio.lastUpdated
+                        beneficio.lastUpdated,
                     ];
                     values.forEach(value => {
                         const cell = document.createElement('td');
