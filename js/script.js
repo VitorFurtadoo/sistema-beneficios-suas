@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const db = firebase.firestore();
     const beneficiosCollection = db.collection('beneficios');
 
-    // Inicializa a lista de usuários
     let users = JSON.parse(localStorage.getItem('users')) || [];
     const adminUserIndex = users.findIndex(u => u.username === 'admin');
     if (adminUserIndex === -1) {
@@ -56,6 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const editForm = document.getElementById('editForm');
     const adminForm = document.getElementById('adminForm');
     const usersTableBody = document.querySelector('#usersTable tbody');
+    const logoutBtn = document.getElementById('logout-btn');
+
 
     const deleteBtnEdit = document.querySelector('.delete-btn-edit');
     if (deleteBtnEdit) {
@@ -97,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clearFilterBtn) { clearFilterBtn.addEventListener('click', clearFilters); }
         if (separateBtn) { separateBtn.addEventListener('click', toggleDateSeparation); }
         if (exportBtn) { exportBtn.addEventListener('click', exportarCSV); }
+        if (logoutBtn) { logoutBtn.addEventListener('click', handleLogout); }
 
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
@@ -106,6 +108,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.location.pathname.endsWith('login.html')) {
             checkLoginStatus();
         }
+    }
+    
+    function handleLogout() {
+        localStorage.removeItem('currentUser');
+        window.location.href = 'login.html';
     }
 
     function checkLoginStatus() {
@@ -253,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
             responsavel: form.responsavel ? form.responsavel.value : '',
             status: form.status.value,
             observacoes: form.observacoes.value,
-            lastUpdated: new Date().toLocaleString('pt-BR')
+            lastUpdated: new Date().toLocaleString('pt-BR'),
         };
         
         await db.collection('beneficios').add(newBeneficio);
