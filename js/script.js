@@ -1,11 +1,26 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicializa o array de benefícios e a lista de usuários
-    let allBeneficios = JSON.parse(localStorage.getItem('allBeneficios')) || [];
-    let users = JSON.parse(localStorage.getItem('users')) || [];
+    // Referências do Firebase (Seu código de configuração)
+    const firebaseConfig = {
+        apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
+        authDomain: "beneficios-eventuais-suas.firebaseapp.com",
+        projectId: "beneficios-eventuais-suas",
+        storageBucket: "beneficios-eventuais-suas.firebasestorage.app",
+        messagingSenderId: "665210304564",
+        appId: "1:665210304564:web:cf233fd0e56bbfe3d5b261"
+    };
+
+    // Apenas inicializa o Firebase se ele ainda não foi inicializado
+    if (firebase.apps.length === 0) {
+        firebase.initializeApp(firebaseConfig);
+    }
     
-    // Garante que o usuário admin exista e esteja ativo por padrão
-    const adminUserExists = users.some(user => user.username === 'admin');
-    if (!adminUserExists) {
+    const db = firebase.firestore();
+    const beneficiosCollection = db.collection('beneficios');
+
+    // Inicializa a lista de usuários (ainda usando localStorage para o login)
+    let users = JSON.parse(localStorage.getItem('users')) || [];
+    const adminUserIndex = users.findIndex(u => u.username === 'admin');
+    if (adminUserIndex === -1) {
         users.push({ 
             username: 'admin', 
             password: 'admin', 
@@ -13,26 +28,15 @@ document.addEventListener('DOMContentLoaded', () => {
             active: true, 
             lastLogin: '' 
         });
-        saveUsers();
     } else {
-        // Garante que o admin principal esteja sempre ativo
-        const adminIndex = users.findIndex(user => user.username === 'admin');
-        if (adminIndex !== -1 && users[adminIndex].active === false) {
-            users[adminIndex].active = true;
-            saveUsers();
-        }
+        users[adminUserIndex].active = true;
     }
-    
+    saveUsers();
+
     let currentUser = null;
 
-    // Salva a lista de usuários no armazenamento local
     function saveUsers() {
         localStorage.setItem('users', JSON.stringify(users));
-    }
-
-    // Salva os benefícios no armazenamento local
-    function saveBeneficios() {
-        localStorage.setItem('allBeneficios', JSON.stringify(allBeneficios));
     }
 
     // Referências a elementos do DOM
@@ -51,6 +55,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminForm = document.getElementById('adminForm');
     const usersTableBody = document.querySelector('#usersTable tbody');
 
+    const deleteBtnEdit = document.querySelector('.delete-btn-edit');
+    if (deleteBtnEdit) {
+        deleteBtnEdit.addEventListener('click', deleteBeneficio);
+    }
+
     // Funções de navegação e inicialização
     function showSection(sectionId) {
         document.querySelectorAll('.section, .main-menu-section').forEach(section => {
@@ -59,11 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetSection = document.getElementById(sectionId);
         if (targetSection) {
             targetSection.classList.add('active');
-            // Se for a seção de consulta, renderiza a tabela
             if (sectionId === 'consultaSection') {
-                renderTable(allBeneficios);
+                fetchBeneficios();
             }
-            // Se for a seção de administração, renderiza a tabela de usuários
             if (sectionId === 'adminSection') {
                 renderUsersTable();
             }
@@ -76,53 +83,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 showSection(button.dataset.section);
             });
         });
-
         backButtons.forEach(button => {
             button.addEventListener('click', () => {
                 showSection(button.dataset.section);
             });
         });
+        if (form) { form.addEventListener('submit', handleFormSubmit); }
+        if (editForm) { editForm.addEventListener('submit', handleEditFormSubmit); }
+        if (adminForm) { adminForm.addEventListener('submit', handleAdminFormSubmit); }
+        if (equipamentoSelect) { equipamentoSelect.addEventListener('change', toggleResponsavelField); }
+        if (filterBtn) { filterBtn.addEventListener('click', applyFilters); }
+        if (clearFilterBtn) { clearFilterBtn.addEventListener('click', clearFilters); }
+        if (separateBtn) { separateBtn.addEventListener('click', toggleDateSeparation); }
+        if (exportBtn) { exportBtn.addEventListener('click', exportarCSV); }
 
-        if (form) {
-            form.addEventListener('submit', handleFormSubmit);
-        }
-
-        if (editForm) {
-            editForm.addEventListener('submit', handleEditFormSubmit);
-        }
-
-        if (adminForm) {
-            adminForm.addEventListener('submit', handleAdminFormSubmit);
-        }
-
-        if (equipamentoSelect) {
-            equipamentoSelect.addEventListener('change', toggleResponsavelField);
-        }
-
-        if (filterBtn) {
-            filterBtn.addEventListener('click', applyFilters);
-        }
-
-        if (clearFilterBtn) {
-            clearFilterBtn.addEventListener('click', clearFilters);
-        }
-
-        if (separateBtn) {
-            separateBtn.addEventListener('click', toggleDateSeparation);
-        }
-
-        if (exportBtn) {
-            exportBtn.addEventListener('click', exportarCSV);
-        }
-
-        // Adiciona event listener para o login
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
             loginForm.addEventListener('submit', handleLogin);
             document.getElementById('signup-btn').addEventListener('click', showContactInfo);
         }
-
-        // Se estiver na página principal, verifica o login
         if (!window.location.pathname.endsWith('login.html')) {
             checkLoginStatus();
         }
@@ -133,7 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) {
             window.location.href = 'login.html';
         } else {
-            // Se for admin, mostra o botão de administração
             if (currentUser.role === 'admin') {
                 document.getElementById('adminMenuButton').style.display = 'block';
             }
@@ -146,7 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const username = document.getElementById('login-username').value;
         const password = document.getElementById('login-password').value;
         const user = users.find(u => u.username === username && u.password === password);
-
         if (user) {
             if (user.active) {
                 user.lastLogin = new Date().toLocaleString('pt-BR');
@@ -166,20 +143,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const newUsername = document.getElementById('new-username').value;
         const newPassword = document.getElementById('new-password').value;
         const newRole = document.getElementById('new-role').value;
-
         const existingUser = users.find(u => u.username === newUsername);
         if (existingUser) {
             alert('Nome de usuário já existe!');
             return;
         }
-
-        const newUser = {
-            username: newUsername,
-            password: newPassword,
-            role: newRole,
-            active: true,
-            lastLogin: ''
-        };
+        const newUser = { username: newUsername, password: newPassword, role: newRole, active: true, lastLogin: '' };
         users.push(newUser);
         saveUsers();
         renderUsersTable();
@@ -232,7 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo WhatsApp: (91) 99925-9834.');
     }
 
-    // Funções de validação e formulário
     function validarCPF(cpf) {
         cpf = cpf.replace(/\D/g, '');
         if (cpf.length !== 11 || /^([0-9])\1+$/.test(cpf)) return false;
@@ -255,18 +223,24 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             responsavelGroup.style.display = 'none';
             responsavelInput.removeAttribute('required');
-            responsavelInput.value = '';
         }
     }
 
-    function handleFormSubmit(e) {
+    // Funções de interação com o Firestore
+    async function fetchBeneficios() {
+        const snapshot = await db.collection('beneficios').get();
+        const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderTable(allBeneficios);
+    }
+    
+    async function handleFormSubmit(e) {
         e.preventDefault();
         const cpfInput = document.getElementById('cpf').value;
         if (!validarCPF(cpfInput)) {
             alert('CPF inválido!');
             return;
         }
-
+        
         const newBeneficio = {
             beneficiario: form.beneficiario.value,
             cpf: form.cpf.value,
@@ -280,20 +254,20 @@ document.addEventListener('DOMContentLoaded', () => {
             observacoes: form.observacoes.value,
             lastUpdated: new Date().toLocaleString('pt-BR')
         };
-
-        allBeneficios.push(newBeneficio);
-        saveBeneficios();
-        renderTable(allBeneficios);
+        
+        await db.collection('beneficios').add(newBeneficio);
         form.reset();
         if (responsavelGroup) {
             responsavelGroup.style.display = 'none';
             responsavelInput.removeAttribute('required');
         }
+        alert('Benefício cadastrado com sucesso!');
+        showSection('consultaSection');
     }
 
-    function handleEditFormSubmit(e) {
+    async function handleEditFormSubmit(e) {
         e.preventDefault();
-        const index = document.getElementById('editIndex').value;
+        const docId = document.getElementById('editIndex').value;
         const formEdit = document.getElementById('editForm');
         
         const updatedBeneficio = {
@@ -315,24 +289,39 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        allBeneficios[index] = updatedBeneficio;
-        saveBeneficios();
-        renderTable(allBeneficios);
+        await db.collection('beneficios').doc(docId).update(updatedBeneficio);
+        alert('Registro atualizado com sucesso!');
         showSection('consultaSection');
     }
 
-    // Funções de Tabela e Edição
+    async function deleteBeneficio() {
+        const docId = document.getElementById('editIndex').value;
+        if (confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) {
+            await db.collection('beneficios').doc(docId).delete();
+            alert('Registro excluído com sucesso!');
+            showSection('consultaSection');
+        }
+    }
+    
     function renderTable(dataToRender) {
         tableBody.innerHTML = '';
         dataToRender.forEach((beneficio) => {
             const row = document.createElement('tr');
-            row.dataset.index = allBeneficios.indexOf(beneficio);
+            row.dataset.id = beneficio.id;
             
-            Object.values(beneficio).forEach(value => {
+            const values = [
+                beneficio.beneficiario, beneficio.cpf, beneficio.data, beneficio.valor,
+                beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
+                beneficio.responsavel, beneficio.status, beneficio.observacoes,
+                beneficio.lastUpdated,
+            ];
+            
+            values.forEach(value => {
                 const cell = document.createElement('td');
                 cell.textContent = value;
                 row.appendChild(cell);
             });
+
             const actionsCell = document.createElement('td');
             actionsCell.innerHTML = `<button class="edit-btn" onclick="openEditForm(this)">Editar</button>`;
             row.appendChild(actionsCell);
@@ -340,12 +329,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    window.openEditForm = function(button) {
+    window.openEditForm = async function(button) {
         const row = button.closest('tr');
-        const index = row.dataset.index;
-        const beneficio = allBeneficios[index];
+        const docId = row.dataset.id;
+        const doc = await db.collection('beneficios').doc(docId).get();
+        const beneficio = doc.data();
 
-        document.getElementById('editIndex').value = index;
+        document.getElementById('editIndex').value = docId;
         document.getElementById('edit-beneficiario').value = beneficio.beneficiario;
         document.getElementById('edit-cpf').value = beneficio.cpf;
         document.getElementById('edit-data').value = beneficio.data;
@@ -360,20 +350,21 @@ document.addEventListener('DOMContentLoaded', () => {
         showSection('editSection');
     };
 
-    // Funções de Filtro e Organização
-    function applyFilters() {
+    async function applyFilters() {
+        let query = db.collection('beneficios');
         const filterBeneficio = document.getElementById('filter-beneficio').value;
         const filterEquipamento = document.getElementById('filter-equipamento').value;
         const filterStatus = document.getElementById('filter-status').value;
         const filterData = document.getElementById('filter-data').value;
-        const filteredData = allBeneficios.filter(beneficio => {
-            const matchesBeneficio = !filterBeneficio || beneficio.beneficio === filterBeneficio;
-            const matchesEquipamento = !filterEquipamento || beneficio.equipamento === filterEquipamento;
-            const matchesStatus = !filterStatus || beneficio.status === filterStatus;
-            const matchesData = !filterData || beneficio.data === filterData;
-            return matchesBeneficio && matchesEquipamento && matchesStatus && matchesData;
-        });
-        renderTable(filteredData);
+        
+        if (filterBeneficio) query = query.where('beneficio', '==', filterBeneficio);
+        if (filterEquipamento) query = query.where('equipamento', '==', filterEquipamento);
+        if (filterStatus) query = query.where('status', '==', filterStatus);
+        if (filterData) query = query.where('data', '==', filterData);
+        
+        const snapshot = await query.get();
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderTable(data);
     }
 
     function clearFilters() {
@@ -381,21 +372,22 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('filter-equipamento').value = '';
         document.getElementById('filter-status').value = '';
         document.getElementById('filter-data').value = '';
-        renderTable(allBeneficios);
+        fetchBeneficios();
     }
 
-    function toggleDateSeparation() {
+    async function toggleDateSeparation() {
         const isSeparated = tableBody.querySelectorAll('.date-separator').length > 0;
+        const snapshot = await db.collection('beneficios').get();
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
         if (isSeparated) {
-            renderTable(allBeneficios);
+            renderTable(data);
         } else {
-            const sortedBeneficios = [...allBeneficios].sort((a, b) => new Date(a.data) - new Date(b.data));
+            const sortedBeneficios = [...data].sort((a, b) => new Date(a.data) - new Date(b.data));
             const groupedByDate = {};
             sortedBeneficios.forEach(beneficio => {
                 const date = beneficio.data;
-                if (!groupedByDate[date]) {
-                    groupedByDate[date] = [];
-                }
+                if (!groupedByDate[date]) { groupedByDate[date] = []; }
                 groupedByDate[date].push(beneficio);
             });
             tableBody.innerHTML = '';
@@ -409,8 +401,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 tableBody.appendChild(dateRow);
                 groupedByDate[date].forEach(beneficio => {
                     const row = document.createElement('tr');
-                    row.dataset.index = allBeneficios.indexOf(beneficio);
-                    Object.values(beneficio).forEach(value => {
+                    row.dataset.id = beneficio.id;
+                    const values = [
+                        beneficio.beneficiario, beneficio.cpf, beneficio.data, beneficio.valor,
+                        beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
+                        beneficio.responsavel, beneficio.status, beneficio.observacoes,
+                        beneficio.lastUpdated
+                    ];
+                    values.forEach(value => {
                         const cell = document.createElement('td');
                         cell.textContent = value;
                         row.appendChild(cell);
@@ -424,24 +422,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Função de exportação para CSV
-    function exportarCSV() {
-        const sortedData = [...allBeneficios].sort((a, b) => new Date(a.data) - new Date(b.data));
+    async function exportarCSV() {
+        const snapshot = await db.collection('beneficios').get();
+        const sortedData = snapshot.docs.map(doc => doc.data()).sort((a, b) => new Date(a.data) - new Date(b.data));
+
         if (sortedData.length === 0) {
             alert("Nenhum dado para exportar.");
             return;
         }
+        
         const headers = [
             "Beneficiário", "CPF", "Data", "Valor", "Benefício", "Quantidade", 
-            "Equipamento", "Responsável", "Status", "Observações", "Última Atualização"
+            "Equipamento", "Técnico Responsável pela Concessão", "Status", "Observações", "Última Atualização"
         ];
         const csvHeaders = headers.map(header => `"${header}"`).join(',');
+        
         const csvRows = sortedData.map(beneficio => {
-            return Object.values(beneficio).map(value => {
+            return [
+                beneficio.beneficiario, beneficio.cpf, beneficio.data, beneficio.valor,
+                beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
+                beneficio.responsavel, beneficio.status, beneficio.observacoes,
+                beneficio.lastUpdated,
+            ].map(value => {
                 let cleanedValue = String(value || '').replace(/"/g, '""');
                 return `"${cleanedValue}"`;
             }).join(',');
         });
+        
         const csvContent = `${csvHeaders}\n${csvRows.join('\n')}`;
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
@@ -451,7 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         document.body.removeChild(link);
     }
-    
+
     // Inicialização da aplicação
     setupEventListeners();
 });

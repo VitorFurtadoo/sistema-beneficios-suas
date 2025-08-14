@@ -10,7 +10,7 @@
 <body>
     <div class="container">
         <div class="header-logo">
-            <img src="images/logo_semdes.png" alt="Logo SEMDES" class="logo">
+            <img src="logo_semdes.png" alt="Logo SEMDES" class="logo">
             <h1>Sistema de Benefícios Eventuais</h1>
         </div>
         
@@ -79,7 +79,7 @@
                             </select>
                         </div>
                         <div class="form-group" id="responsavelGroup" style="display:none;">
-                            <label for="responsavel">Responsável pelo Cadastro</label>
+                            <label for="responsavel">Técnico Responsável pela Concessão</label>
                             <input type="text" id="responsavel" name="responsavel" placeholder="Ex: Maria da Luz">
                         </div>
                         <div class="form-group">
@@ -87,7 +87,6 @@
                             <select id="status" name="status">
                                 <option value="Concedido">Concedido</option>
                                 <option value="Pendente">Pendente</option>
-                                <option value="Negado">Negado</option>
                             </select>
                         </div>
                         <div class="form-group full-width">
@@ -157,7 +156,7 @@
                             <th>Benefício</th>
                             <th>Quantidade</th>
                             <th>Equipamento</th>
-                            <th>Responsável</th>
+                            <th>Técnico Responsável pela Concessão</th>
                             <th>Status</th>
                             <th>Observações</th>
                             <th>Última Atualização</th>
@@ -216,7 +215,7 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="edit-responsavel">Responsável pelo Cadastro</label>
+                            <label for="edit-responsavel">Técnico Responsável pela Concessão</label>
                             <input type="text" id="edit-responsavel" name="responsavel">
                         </div>
                         <div class="form-group">
@@ -224,7 +223,6 @@
                             <select id="edit-status" name="status">
                                 <option value="Concedido">Concedido</option>
                                 <option value="Pendente">Pendente</option>
-                                <option value="Negado">Negado</option>
                             </select>
                         </div>
                         <div class="form-group full-width">
@@ -233,6 +231,7 @@
                         </div>
                     </div>
                     <div class="form-group full-width" style="margin-top: 20px;">
+                        <button type="button" class="delete-btn-edit">Excluir Registro</button>
                         <button type="submit" class="submit-btn" id="btn-salvar-edicao">Salvar Edição</button>
                     </div>
                 </form>
@@ -293,6 +292,8 @@
         </div>
     </div>
     
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
     <script src="js/script.js"></script>
 </body>
 </html>
