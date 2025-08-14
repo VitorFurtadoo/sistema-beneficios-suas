@@ -9,26 +9,33 @@ document.addEventListener('DOMContentLoaded', () => {
         appId: "1:665210304564:web:cf233fd0e56bbfe3d5b261"
     };
 
-    // Apenas inicializa o Firebase se ele ainda não foi inicializado
     if (firebase.apps.length === 0) {
         firebase.initializeApp(firebaseConfig);
     }
     
     const db = firebase.firestore();
+    const storage = firebase.storage();
     const beneficiosCollection = db.collection('beneficios');
 
-    // Inicializa a lista de usuários (ainda usando localStorage para o login)
+    // Inicializa a lista de usuários
     let users = JSON.parse(localStorage.getItem('users')) || [];
     const adminUserIndex = users.findIndex(u => u.username === 'admin');
+    
+    // Altera a lógica de inicialização para as novas credenciais
     if (adminUserIndex === -1) {
         users.push({ 
-            username: 'admin', 
-            password: 'admin', 
+            username: 'vitorfurtadoo', 
+            password: 'Biologo123!', 
             role: 'admin', 
             active: true, 
             lastLogin: '' 
         });
     } else {
+        // Se a conta 'admin' antiga existir, atualiza as credenciais
+        if (users[adminUserIndex].username === 'admin') {
+            users[adminUserIndex].username = 'vitorfurtadoo';
+            users[adminUserIndex].password = 'Biologo123!';
+        }
         users[adminUserIndex].active = true;
     }
     saveUsers();
@@ -60,7 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteBtnEdit.addEventListener('click', deleteBeneficio);
     }
 
-    // Funções de navegação e inicialização
     function showSection(sectionId) {
         document.querySelectorAll('.section, .main-menu-section').forEach(section => {
             section.classList.remove('active');
@@ -198,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     function showContactInfo() {
-        alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo 1Doc');
+        alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo WhatsApp: (91) 99925-9834.');
     }
 
     function validarCPF(cpf) {
@@ -226,6 +232,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function handleFileUpload(file) {
+        if (!file) return null;
+        const storageRef = storage.ref();
+        const fileRef = storageRef.child(`anexos/${Date.now()}_${file.name}`);
+        await fileRef.put(file);
+        return await fileRef.getDownloadURL();
+    }
+
     // Funções de interação com o Firestore
     async function fetchBeneficios() {
         const snapshot = await db.collection('beneficios').get();
@@ -240,6 +254,9 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('CPF inválido!');
             return;
         }
+
+        const documentoFile = form.documento.files[0];
+        const anexoUrl = documentoFile ? await handleFileUpload(documentoFile) : '';
         
         const newBeneficio = {
             beneficiario: form.beneficiario.value,
@@ -252,7 +269,8 @@ document.addEventListener('DOMContentLoaded', () => {
             responsavel: form.responsavel ? form.responsavel.value : '',
             status: form.status.value,
             observacoes: form.observacoes.value,
-            lastUpdated: new Date().toLocaleString('pt-BR')
+            lastUpdated: new Date().toLocaleString('pt-BR'),
+            anexo: anexoUrl
         };
         
         await db.collection('beneficios').add(newBeneficio);
@@ -270,6 +288,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const docId = document.getElementById('editIndex').value;
         const formEdit = document.getElementById('editForm');
         
+        const documentoFile = formEdit['edit-documento'].files[0];
+        const anexoUrl = documentoFile ? await handleFileUpload(documentoFile) : '';
+        
         const updatedBeneficio = {
             beneficiario: formEdit['edit-beneficiario'].value,
             cpf: formEdit['edit-cpf'].value,
@@ -281,7 +302,8 @@ document.addEventListener('DOMContentLoaded', () => {
             responsavel: formEdit['edit-responsavel'].value,
             status: formEdit['edit-status'].value,
             observacoes: formEdit['edit-observacoes'].value,
-            lastUpdated: new Date().toLocaleString('pt-BR')
+            lastUpdated: new Date().toLocaleString('pt-BR'),
+            anexo: anexoUrl
         };
     
         if (!validarCPF(updatedBeneficio.cpf)) {
@@ -314,11 +336,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
                 beneficio.responsavel, beneficio.status, beneficio.observacoes,
                 beneficio.lastUpdated,
+                beneficio.anexo,
             ];
             
-            values.forEach(value => {
+            values.forEach((value, index) => {
                 const cell = document.createElement('td');
-                cell.textContent = value;
+                if (index === 11 && value) { // Coluna do anexo
+                    const link = document.createElement('a');
+                    link.href = value;
+                    link.textContent = 'Ver Anexo';
+                    link.target = '_blank';
+                    cell.appendChild(link);
+                } else {
+                    cell.textContent = value;
+                }
                 row.appendChild(cell);
             });
 
@@ -394,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const date in groupedByDate) {
                 const dateRow = document.createElement('tr');
                 const dateCell = document.createElement('td');
-                dateCell.colSpan = 12;
+                dateCell.colSpan = 13;
                 dateCell.className = 'date-separator';
                 dateCell.textContent = `Registros em ${date.split('-').reverse().join('/')}`;
                 dateRow.appendChild(dateCell);
@@ -406,11 +437,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         beneficio.beneficiario, beneficio.cpf, beneficio.data, beneficio.valor,
                         beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
                         beneficio.responsavel, beneficio.status, beneficio.observacoes,
-                        beneficio.lastUpdated
+                        beneficio.lastUpdated, beneficio.anexo
                     ];
-                    values.forEach(value => {
+                    values.forEach((value, index) => {
                         const cell = document.createElement('td');
-                        cell.textContent = value;
+                        if (index === 11 && value) {
+                            const link = document.createElement('a');
+                            link.href = value;
+                            link.textContent = 'Ver Anexo';
+                            link.target = '_blank';
+                            cell.appendChild(link);
+                        } else {
+                            cell.textContent = value;
+                        }
                         row.appendChild(cell);
                     });
                     const actionsCell = document.createElement('td');
@@ -433,17 +472,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const headers = [
             "Beneficiário", "CPF", "Data", "Valor", "Benefício", "Quantidade", 
-            "Equipamento", "Técnico Responsável pela Concessão", "Status", "Observações", "Última Atualização"
+            "Equipamento", "Técnico Responsável pela Concessão", "Status", "Observações", "Última Atualização", "Anexo"
         ];
         const csvHeaders = headers.map(header => `"${header}"`).join(',');
         
         const csvRows = sortedData.map(beneficio => {
-            return [
-                beneficio.beneficiario, beneficio.cpf, beneficio.data, beneficio.valor,
-                beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
-                beneficio.responsavel, beneficio.status, beneficio.observacoes,
-                beneficio.lastUpdated,
-            ].map(value => {
+            return headers.map(header => {
+                let value = beneficio[header];
                 let cleanedValue = String(value || '').replace(/"/g, '""');
                 return `"${cleanedValue}"`;
             }).join(',');
@@ -459,6 +494,5 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(link);
     }
 
-    // Inicialização da aplicação
     setupEventListeners();
 });
