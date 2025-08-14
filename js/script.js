@@ -14,14 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     const db = firebase.firestore();
-    const storage = firebase.storage();
     const beneficiosCollection = db.collection('beneficios');
 
     // Inicializa a lista de usuários
     let users = JSON.parse(localStorage.getItem('users')) || [];
     const adminUserIndex = users.findIndex(u => u.username === 'admin');
-    
-    // Altera a lógica de inicialização para as novas credenciais
     if (adminUserIndex === -1) {
         users.push({ 
             username: 'vitorfurtadoo', 
@@ -31,7 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
             lastLogin: '' 
         });
     } else {
-        // Se a conta 'admin' antiga existir, atualiza as credenciais
         if (users[adminUserIndex].username === 'admin') {
             users[adminUserIndex].username = 'vitorfurtadoo';
             users[adminUserIndex].password = 'Biologo123!';
@@ -46,7 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('users', JSON.stringify(users));
     }
 
-    // Referências a elementos do DOM
     const menuButtons = document.querySelectorAll('.menu-btn');
     const backButtons = document.querySelectorAll('.back-btn');
     const form = document.getElementById('beneficioForm');
@@ -232,14 +227,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function handleFileUpload(file) {
-        if (!file) return null;
-        const storageRef = storage.ref();
-        const fileRef = storageRef.child(`anexos/${Date.now()}_${file.name}`);
-        await fileRef.put(file);
-        return await fileRef.getDownloadURL();
-    }
-
     // Funções de interação com o Firestore
     async function fetchBeneficios() {
         const snapshot = await db.collection('beneficios').get();
@@ -254,9 +241,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('CPF inválido!');
             return;
         }
-
-        const documentoFile = form.documento.files[0];
-        const anexoUrl = documentoFile ? await handleFileUpload(documentoFile) : '';
         
         const newBeneficio = {
             beneficiario: form.beneficiario.value,
@@ -269,8 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
             responsavel: form.responsavel ? form.responsavel.value : '',
             status: form.status.value,
             observacoes: form.observacoes.value,
-            lastUpdated: new Date().toLocaleString('pt-BR'),
-            anexo: anexoUrl
+            lastUpdated: new Date().toLocaleString('pt-BR')
         };
         
         await db.collection('beneficios').add(newBeneficio);
@@ -288,9 +271,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const docId = document.getElementById('editIndex').value;
         const formEdit = document.getElementById('editForm');
         
-        const documentoFile = formEdit['edit-documento'].files[0];
-        const anexoUrl = documentoFile ? await handleFileUpload(documentoFile) : '';
-        
         const updatedBeneficio = {
             beneficiario: formEdit['edit-beneficiario'].value,
             cpf: formEdit['edit-cpf'].value,
@@ -302,8 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
             responsavel: formEdit['edit-responsavel'].value,
             status: formEdit['edit-status'].value,
             observacoes: formEdit['edit-observacoes'].value,
-            lastUpdated: new Date().toLocaleString('pt-BR'),
-            anexo: anexoUrl
+            lastUpdated: new Date().toLocaleString('pt-BR')
         };
     
         if (!validarCPF(updatedBeneficio.cpf)) {
@@ -336,20 +315,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
                 beneficio.responsavel, beneficio.status, beneficio.observacoes,
                 beneficio.lastUpdated,
-                beneficio.anexo,
             ];
             
-            values.forEach((value, index) => {
+            values.forEach(value => {
                 const cell = document.createElement('td');
-                if (index === 11 && value) { // Coluna do anexo
-                    const link = document.createElement('a');
-                    link.href = value;
-                    link.textContent = 'Ver Anexo';
-                    link.target = '_blank';
-                    cell.appendChild(link);
-                } else {
-                    cell.textContent = value;
-                }
+                cell.textContent = value;
                 row.appendChild(cell);
             });
 
@@ -425,7 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const date in groupedByDate) {
                 const dateRow = document.createElement('tr');
                 const dateCell = document.createElement('td');
-                dateCell.colSpan = 13;
+                dateCell.colSpan = 12;
                 dateCell.className = 'date-separator';
                 dateCell.textContent = `Registros em ${date.split('-').reverse().join('/')}`;
                 dateRow.appendChild(dateCell);
@@ -437,19 +407,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         beneficio.beneficiario, beneficio.cpf, beneficio.data, beneficio.valor,
                         beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
                         beneficio.responsavel, beneficio.status, beneficio.observacoes,
-                        beneficio.lastUpdated, beneficio.anexo
+                        beneficio.lastUpdated
                     ];
-                    values.forEach((value, index) => {
+                    values.forEach(value => {
                         const cell = document.createElement('td');
-                        if (index === 11 && value) {
-                            const link = document.createElement('a');
-                            link.href = value;
-                            link.textContent = 'Ver Anexo';
-                            link.target = '_blank';
-                            cell.appendChild(link);
-                        } else {
-                            cell.textContent = value;
-                        }
+                        cell.textContent = value;
                         row.appendChild(cell);
                     });
                     const actionsCell = document.createElement('td');
@@ -472,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const headers = [
             "Beneficiário", "CPF", "Data", "Valor", "Benefício", "Quantidade", 
-            "Equipamento", "Técnico Responsável pela Concessão", "Status", "Observações", "Última Atualização", "Anexo"
+            "Equipamento", "Técnico Responsável pela Concessão", "Status", "Observações", "Última Atualização"
         ];
         const csvHeaders = headers.map(header => `"${header}"`).join(',');
         
