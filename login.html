@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Benefícios Eventuais</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body class="login-page">
+    <div class="container">
+        <div class="card login-card">
+            <div class="header-logo login-header">
+                <img src="images/logo_semdes.png" alt="Logo SEMDES" class="logo">
+            </div>
+            <h1>Sistema de Benefícios Eventuais</h1>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="login-username">Login</label>
+                    <input type="text" id="login-username" name="login-username" placeholder="Seu login" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Senha</label>
+                    <input type="password" id="login-password" name="login-password" placeholder="Sua senha" required>
+                </div>
+                <button type="submit" class="submit-btn">Entrar</button>
+            </form>
+            <div style="text-align: center; margin-top: 20px;">
+                <p>Não tem um login?</p>
+                <button id="signup-btn" class="secondary-btn">Solicitar Acesso</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/script.js"></script>
+</body>
+</html>
