@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     function showContactInfo() {
-        alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo WhatsApp: (91) 99925-9834.');
+        alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo 1Doc');
     }
 
     function validarCPF(cpf) {
