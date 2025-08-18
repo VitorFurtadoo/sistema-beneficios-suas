@@ -11,9 +11,9 @@ exports.createUserDocument = functions.auth.user().onCreate((user) => {
     // Cria o documento do usuário no Firestore com os dados iniciais
     return newUserRef.set({
         email: user.email,
-        username: user.email.split('@')[0], // Um nome de usuário padrão
-        role: 'user', // Define a função padrão para novos usuários como 'user'
+        role: 'user', // A função padrão é 'user'
         active: true,
-        createdAt: admin.firestore.FieldValue.serverTimestamp() // Adiciona um carimbo de data/hora
+        username: user.email.split('@')[0], // Define um nome de usuário padrão
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 });

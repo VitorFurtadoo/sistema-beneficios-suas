@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Sistema de Benefícios Eventuais</title>
+    <title>Cadastro - Sistema de Benefícios Eventuais</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
@@ -18,24 +18,29 @@
     <div class="container">
         <div class="card login-card">
             <img src="imagens/logo_semdes.png" alt="Logo SEMDES" class="logo">
-            <h1>Sistema de Benefícios Eventuais</h1>
-            <form id="loginForm">
+            <h1>Criar Acesso</h1>
+            <form id="signupForm">
                 <div class="form-group">
-                    <label for="login-email">E-mail</label>
-                    <input type="email" id="login-email" name="login-email" placeholder="Seu e-mail" required>
+                    <label for="signup-email">E-mail</label>
+                    <input type="email" id="signup-email" placeholder="Seu e-mail" required>
                 </div>
                 <div class="form-group">
-                    <label for="login-password">Senha</label>
-                    <input type="password" id="login-password" name="login-password" placeholder="Sua senha" required>
+                    <label for="signup-password">Senha</label>
+                    <input type="password" id="signup-password" placeholder="Sua senha" required>
                 </div>
-                <button type="submit" id="login-btn" class="submit-btn">Entrar</button>
+                <div class="form-group">
+                    <label for="signup-confirm-password">Confirmar Senha</label>
+                    <input type="password" id="signup-confirm-password" placeholder="Confirme sua senha" required>
+                </div>
+                <div id="error-message" style="color: red; margin-bottom: 10px; display: none;"></div>
+                <button type="submit" id="signup-btn" class="submit-btn">Cadastrar</button>
             </form>
             <div class="signup-container">
-                <p>Não tem uma conta?</p>
-                <a href="signup.html" class="secondary-btn">Cadastre-se</a>
+                <p>Já tem uma conta?</p>
+                <a href="login.html" class="secondary-btn">Ir para Login</a>
             </div>
         </div>
     </div>
-    <script src="js/login.js"></script>
+    <script src="js/signup.js"></script>
 </body>
 </html>

@@ -13,58 +13,56 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
+const auth = firebase.auth();
+const db = firebase.firestore();
+const usersCollection = db.collection('users');
+
 const showLoading = () => {
     const overlay = document.getElementById('loading-overlay');
-    if (overlay) {
-        overlay.style.display = 'flex';
-    }
+    if (overlay) overlay.style.display = 'flex';
 };
 
 const hideLoading = () => {
     const overlay = document.getElementById('loading-overlay');
-    if (overlay) {
-        overlay.style.display = 'none';
-    }
+    if (overlay) overlay.style.display = 'none';
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('login-btn').addEventListener('click', async () => {
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
         showLoading();
-        const username = document.getElementById('login-username').value.trim();
-        const password = document.getElementById('login-password').value.trim();
-
-        // **ATENÇÃO:** Esta lógica de login é INSEGURA. 
-        // Você deve migrar para o Firebase Authentication para gerenciar usuários e senhas de forma segura.
-        // A lógica abaixo é a sua implementação original, que tem vulnerabilidades.
-        const db = firebase.firestore();
-        const usersCollection = db.collection('users');
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
 
         try {
-            const query = await usersCollection
-                .where('username', '==', username)
-                .where('password', '==', password) 
-                .get();
+            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+            
+            // Busca o documento do usuário no Firestore com o UID do Firebase Auth
+            const userDoc = await usersCollection.doc(user.uid).get();
 
-            if (!query.empty) {
-                const user = { id: query.docs[0].id, ...query.docs[0].data() };
-                if (user.active) {
-                    localStorage.setItem('currentUser', JSON.stringify(user));
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                if (userData.active) {
+                    localStorage.setItem('currentUser', JSON.stringify({ id: user.uid, ...userData }));
                     window.location.href = 'index.html';
                 } else {
-                    alert('Conta desativada.');
+                    alert('Sua conta está desativada.');
+                    await auth.signOut(); // Desloga o usuário
                 }
             } else {
-                alert('Login ou senha incorretos.');
+                alert('Documento do usuário não encontrado. Contate o administrador.');
+                await auth.signOut();
             }
         } catch (error) {
             console.error("Erro no login:", error);
-            alert("Falha no login. Verifique o console.");
+            if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+                alert("E-mail ou senha incorretos.");
+            } else {
+                alert("Ocorreu um erro. Verifique o console.");
+            }
         } finally {
             hideLoading();
         }
-    });
-
-    document.getElementById('signup-btn').addEventListener('click', () => {
-        alert('Para solicitar acesso, entre em contato com o administrador.');
     });
 });
