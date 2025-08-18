@@ -22,10 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const beneficiosCollection = db.collection('beneficios');
     const usersCollection = db.collection('users');
 
-    // CONTROLE DE TELA DE CARREGAMENTO
-    const showLoading = () => document.getElementById('loading-overlay')?.style.display = 'flex';
-    const hideLoading = () => document.getElementById('loading-overlay')?.style.display = 'none';
-
+// CONTROLE DE TELA DE CARREGAMENTO
+const showLoading = () => document.getElementById('loading-overlay')?.style.display = 'flex';
+const hideLoading = () => document.getElementById('loading-overlay')?.style.display = 'none';
     // DECLARAÇÃO DE VARIÁVEIS DE ELEMENTOS DO DOM
     let salvarPdfPeriodoBtn, salvarPdfEquipamentoBtn, graficoPeriodoChart, graficoEquipamentoChart;
 
