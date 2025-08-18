@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Referências do Firebase (Seu código de configuração)
     const firebaseConfig = {
         apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
         authDomain: "beneficios-eventuais-suas.firebaseapp.com",
@@ -14,48 +15,158 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const db = firebase.firestore();
     const beneficiosCollection = db.collection('beneficios');
-
-    let users = JSON.parse(localStorage.getItem('users')) || [];
-    const adminUserIndex = users.findIndex(u => u.username === 'vitorfurtadoo');
-    if (adminUserIndex === -1) {
-        users.push({ 
-            username: 'vitorfurtadoo', 
-            password: 'Biologo123!', 
-            role: 'admin', 
-            active: true, 
-            lastLogin: '' 
-        });
-    } else {
-        users[adminUserIndex].active = true;
-    }
-    saveUsers();
+    const usersCollection = db.collection('users');
 
     let currentUser = null;
 
-    function saveUsers() {
-        localStorage.setItem('users', JSON.stringify(users));
+    // Funções de usuário e login
+    async function setupAdminUser() {
+        const adminSnapshot = await usersCollection.where('role', '==', 'admin').limit(1).get();
+        if (adminSnapshot.empty) {
+            const newAdminUser = { 
+                username: 'vitorfurtadoo', 
+                password: 'Biologo123!', 
+                role: 'admin', 
+                active: true, 
+                lastLogin: '' 
+            };
+            await usersCollection.add(newAdminUser);
+            console.log('Usuário administrador criado no Firestore.');
+        }
     }
 
-    const menuButtons = document.querySelectorAll('.menu-btn');
-    const backButtons = document.querySelectorAll('.back-btn');
-    const form = document.getElementById('beneficioForm');
-    const tableBody = document.querySelector('#beneficiosTable tbody');
-    const equipamentoSelect = document.getElementById('equipamento');
-    const responsavelGroup = document.getElementById('responsavelGroup');
-    const responsavelInput = document.getElementById('responsavel');
-    const filterBtn = document.getElementById('btn-filtrar');
-    const clearFilterBtn = document.getElementById('btn-limpar');
-    const separateBtn = document.getElementById('btn-separar');
-    const exportBtn = document.getElementById('btn-exportar-csv');
-    const editForm = document.getElementById('editForm');
-    const adminForm = document.getElementById('adminForm');
-    const usersTableBody = document.querySelector('#usersTable tbody');
-
-    const deleteBtnEdit = document.querySelector('.delete-btn-edit');
-    if (deleteBtnEdit) {
-        deleteBtnEdit.addEventListener('click', deleteBeneficio);
+    function saveCurrentUser(user) {
+        localStorage.setItem('currentUser', JSON.stringify(user));
+    }
+    
+    async function checkLoginStatus() {
+        currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser) {
+            window.location.href = 'login.html';
+        } else {
+            document.getElementById('welcome-message').textContent = `Bem-vindo(a), ${currentUser.username}!`;
+            if (currentUser.role === 'admin') {
+                document.getElementById('adminMenuButton').style.display = 'block';
+            }
+            showSection('mainMenu');
+        }
     }
 
+    async function handleLogin(e) {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value;
+        const password = document.getElementById('login-password').value;
+
+        const userSnapshot = await usersCollection
+            .where('username', '==', username)
+            .where('password', '==', password)
+            .get();
+
+        if (!userSnapshot.empty) {
+            const userDoc = userSnapshot.docs[0];
+            const user = { id: userDoc.id, ...userDoc.data() };
+            if (user.active) {
+                user.lastLogin = new Date().toLocaleString('pt-BR');
+                await usersCollection.doc(user.id).update({ lastLogin: user.lastLogin });
+                saveCurrentUser(user);
+                window.location.href = 'index.html';
+            } else {
+                alert('Sua conta está desativada. Entre em contato com o administrador.');
+            }
+        } else {
+            alert('Login ou senha incorretos.');
+        }
+    }
+
+    function handleLogout() {
+        localStorage.removeItem('currentUser');
+        window.location.href = 'login.html';
+    }
+
+    // Gerenciamento de Usuários (Admin)
+    async function handleAdminFormSubmit(e) {
+        e.preventDefault();
+        const newUsername = document.getElementById('new-username').value;
+        const newPassword = document.getElementById('new-password').value;
+        const newRole = document.getElementById('new-role').value;
+        const existingUserSnapshot = await usersCollection.where('username', '==', newUsername).get();
+        if (!existingUserSnapshot.empty) {
+            alert('Nome de usuário já existe!');
+            return;
+        }
+        const newUser = {
+            username: newUsername,
+            password: newPassword,
+            role: newRole,
+            active: true,
+            lastLogin: ''
+        };
+        await usersCollection.add(newUser);
+        renderUsersTable();
+        adminForm.reset();
+        alert('Novo usuário cadastrado com sucesso!');
+    }
+
+    async function renderUsersTable() {
+        const usersTableBody = document.querySelector('#usersTable tbody');
+        usersTableBody.innerHTML = '';
+        const snapshot = await usersCollection.get();
+        const userList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        userList.forEach((user) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${user.username}</td>
+                <td>${user.role === 'admin' ? 'Administrador' : 'Usuário Comum'}</td>
+                <td>${user.lastLogin || 'Nunca'}</td>
+                <td>
+                    <button class="${user.active ? 'cancel-btn' : 'submit-btn'}" onclick="toggleUserStatus('${user.id}')">
+                        ${user.active ? 'Desativar' : 'Ativar'}
+                    </button>
+                    <button class="delete-btn" onclick="deleteUser('${user.id}')">Excluir</button>
+                </td>
+            `;
+            usersTableBody.appendChild(row);
+        });
+    }
+
+    window.toggleUserStatus = async function(userId) {
+        const userRef = usersCollection.doc(userId);
+        const userDoc = await userRef.get();
+        const user = userDoc.data();
+        
+        if (user.role === 'admin' && user.active && (await usersCollection.where('role', '==', 'admin').where('active', '==', true).get()).size === 1) {
+            alert('Não é possível desativar o único administrador ativo.');
+            return;
+        }
+        await userRef.update({ active: !user.active });
+        renderUsersTable();
+    };
+
+    window.deleteUser = async function(userId) {
+        const userRef = usersCollection.doc(userId);
+        const userDoc = await userRef.get();
+        const user = userDoc.data();
+
+        if (user.role === 'admin') {
+            alert('Não é possível excluir um administrador. Desative a conta, se necessário.');
+            return;
+        }
+
+        if (confirm(`Tem certeza que deseja excluir o usuário ${user.username}?`)) {
+            await userRef.delete();
+            renderUsersTable();
+        }
+    };
+    
+    function showContactInfo() {
+        alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo WhatsApp: (91) 99925-9834.');
+    }
+
+    // Funções de navegação e eventos (o resto do código permanece o mesmo)
+    // ... (funções showSection, setupEventListeners, etc.) ...
+
+    // Funções de navegação e eventos
     function showSection(sectionId) {
         document.querySelectorAll('.section, .main-menu-section').forEach(section => {
             section.classList.remove('active');
@@ -91,6 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clearFilterBtn) { clearFilterBtn.addEventListener('click', clearFilters); }
         if (separateBtn) { separateBtn.addEventListener('click', toggleDateSeparation); }
         if (exportBtn) { exportBtn.addEventListener('click', exportarCSV); }
+        if (logoutBtn) { logoutBtn.addEventListener('click', handleLogout); }
 
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
@@ -98,102 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('signup-btn').addEventListener('click', showContactInfo);
         }
         if (!window.location.pathname.endsWith('login.html')) {
+            setupAdminUser(); // Garante que o admin seja criado no Firestore
             checkLoginStatus();
         }
-    }
-
-    function checkLoginStatus() {
-        currentUser = JSON.parse(localStorage.getItem('currentUser'));
-        if (!currentUser) {
-            window.location.href = 'login.html';
-        } else {
-            if (currentUser.role === 'admin') {
-                document.getElementById('adminMenuButton').style.display = 'block';
-            }
-            showSection('mainMenu');
-        }
-    }
-
-    function handleLogin(e) {
-        e.preventDefault();
-        const username = document.getElementById('login-username').value;
-        const password = document.getElementById('login-password').value;
-        const user = users.find(u => u.username === username && u.password === password);
-        if (user) {
-            if (user.active) {
-                user.lastLogin = new Date().toLocaleString('pt-BR');
-                saveUsers();
-                localStorage.setItem('currentUser', JSON.stringify(user));
-                window.location.href = 'index.html';
-            } else {
-                alert('Sua conta está desativada. Entre em contato com o administrador.');
-            }
-        } else {
-            alert('Login ou senha incorretos.');
-        }
-    }
-
-    function handleAdminFormSubmit(e) {
-        e.preventDefault();
-        const newUsername = document.getElementById('new-username').value;
-        const newPassword = document.getElementById('new-password').value;
-        const newRole = document.getElementById('new-role').value;
-        const existingUser = users.find(u => u.username === newUsername);
-        if (existingUser) {
-            alert('Nome de usuário já existe!');
-            return;
-        }
-        const newUser = { username: newUsername, password: newPassword, role: newRole, active: true, lastLogin: '' };
-        users.push(newUser);
-        saveUsers();
-        renderUsersTable();
-        adminForm.reset();
-        alert('Novo usuário cadastrado com sucesso!');
-    }
-
-    function renderUsersTable() {
-        usersTableBody.innerHTML = '';
-        users.forEach((user, index) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${user.username}</td>
-                <td>${user.role === 'admin' ? 'Administrador' : 'Usuário Comum'}</td>
-                <td>${user.lastLogin || 'Nunca'}</td>
-                <td>
-                    <button class="${user.active ? 'cancel-btn' : 'submit-btn'}" onclick="toggleUserStatus(${index})">
-                        ${user.active ? 'Desativar' : 'Ativar'}
-                    </button>
-                    <button class="delete-btn" onclick="deleteUser(${index})">Excluir</button>
-                </td>
-            `;
-            usersTableBody.appendChild(row);
-        });
-    }
-
-    window.toggleUserStatus = function(index) {
-        if (users[index].role === 'admin' && users.filter(u => u.role === 'admin' && u.active).length === 1 && users[index].active) {
-             alert('Não é possível desativar o único administrador ativo.');
-             return;
-        }
-        users[index].active = !users[index].active;
-        saveUsers();
-        renderUsersTable();
-    };
-
-    window.deleteUser = function(index) {
-        if (users[index].role === 'admin') {
-            alert('Não é possível excluir um administrador. Desative a conta, se necessário.');
-            return;
-        }
-        if (confirm(`Tem certeza que deseja excluir o usuário ${users[index].username}?`)) {
-            users.splice(index, 1);
-            saveUsers();
-            renderUsersTable();
-        }
-    };
-    
-    function showContactInfo() {
-        alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo WhatsApp: (91) 99925-9834.');
     }
 
     function validarCPF(cpf) {
@@ -212,6 +231,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function toggleResponsavelField() {
+        const responsavelInput = document.getElementById('responsavel');
+        const responsavelGroup = document.getElementById('responsavelGroup');
         if (this.value !== '') {
             responsavelGroup.style.display = 'flex';
             responsavelInput.setAttribute('required', 'required');
@@ -220,13 +241,14 @@ document.addEventListener('DOMContentLoaded', () => {
             responsavelInput.removeAttribute('required');
         }
     }
-
+    
+    // Funções de interação com o Firestore
     async function fetchBeneficios() {
-        const snapshot = await db.collection('beneficios').get();
+        const snapshot = await beneficiosCollection.get();
         const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderTable(allBeneficios);
     }
-    
+
     async function handleFormSubmit(e) {
         e.preventDefault();
         const cpfInput = document.getElementById('cpf').value;
@@ -234,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('CPF inválido!');
             return;
         }
-        
+
         const newBeneficio = {
             beneficiario: form.beneficiario.value,
             cpf: form.cpf.value,
@@ -246,10 +268,10 @@ document.addEventListener('DOMContentLoaded', () => {
             responsavel: form.responsavel ? form.responsavel.value : '',
             status: form.status.value,
             observacoes: form.observacoes.value,
-            lastUpdated: new Date().toLocaleString('pt-BR'),
+            lastUpdated: new Date().toLocaleString('pt-BR')
         };
         
-        await db.collection('beneficios').add(newBeneficio);
+        await beneficiosCollection.add(newBeneficio);
         form.reset();
         if (responsavelGroup) {
             responsavelGroup.style.display = 'none';
@@ -283,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        await db.collection('beneficios').doc(docId).update(updatedBeneficio);
+        await beneficiosCollection.doc(docId).update(updatedBeneficio);
         alert('Registro atualizado com sucesso!');
         showSection('consultaSection');
     }
@@ -291,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function deleteBeneficio() {
         const docId = document.getElementById('editIndex').value;
         if (confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) {
-            await db.collection('beneficios').doc(docId).delete();
+            await beneficiosCollection.doc(docId).delete();
             alert('Registro excluído com sucesso!');
             showSection('consultaSection');
         }
@@ -326,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openEditForm = async function(button) {
         const row = button.closest('tr');
         const docId = row.dataset.id;
-        const doc = await db.collection('beneficios').doc(docId).get();
+        const doc = await beneficiosCollection.doc(docId).get();
         const beneficio = doc.data();
 
         document.getElementById('editIndex').value = docId;
@@ -345,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     async function applyFilters() {
-        let query = db.collection('beneficios');
+        let query = beneficiosCollection;
         const filterBeneficio = document.getElementById('filter-beneficio').value;
         const filterEquipamento = document.getElementById('filter-equipamento').value;
         const filterStatus = document.getElementById('filter-status').value;
@@ -371,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function toggleDateSeparation() {
         const isSeparated = tableBody.querySelectorAll('.date-separator').length > 0;
-        const snapshot = await db.collection('beneficios').get();
+        const snapshot = await beneficiosCollection.get();
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
         if (isSeparated) {
@@ -417,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function exportarCSV() {
-        const snapshot = await db.collection('beneficios').get();
+        const snapshot = await beneficiosCollection.get();
         const sortedData = snapshot.docs.map(doc => doc.data()).sort((a, b) => new Date(a.data) - new Date(b.data));
 
         if (sortedData.length === 0) {
