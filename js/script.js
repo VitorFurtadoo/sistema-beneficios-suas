@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Referências do Firebase (Seu código de configuração)
     const firebaseConfig = {
         apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
         authDomain: "beneficios-eventuais-suas.firebaseapp.com",
@@ -19,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentUser = null;
 
-    // Funções de usuário e login
     async function setupAdminUser() {
         const adminSnapshot = await usersCollection.where('role', '==', 'admin').limit(1).get();
         if (adminSnapshot.empty) {
@@ -44,9 +42,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) {
             window.location.href = 'login.html';
         } else {
-            document.getElementById('welcome-message').textContent = `Bem-vindo(a), ${currentUser.username}!`;
-            if (currentUser.role === 'admin') {
-                document.getElementById('adminMenuButton').style.display = 'block';
+            const welcomeMessageElement = document.getElementById('welcome-message');
+            if (welcomeMessageElement) {
+                welcomeMessageElement.textContent = `Bem-vindo(a), ${currentUser.username}!`;
+            }
+            const adminMenuButton = document.getElementById('adminMenuButton');
+            if (adminMenuButton && currentUser.role === 'admin') {
+                adminMenuButton.style.display = 'block';
             }
             showSection('mainMenu');
         }
@@ -83,7 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'login.html';
     }
 
-    // Gerenciamento de Usuários (Admin)
     async function handleAdminFormSubmit(e) {
         e.preventDefault();
         const newUsername = document.getElementById('new-username').value;
@@ -163,58 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo WhatsApp: (91) 99925-9834.');
     }
 
-    // Funções de navegação e eventos (o resto do código permanece o mesmo)
-    // ... (funções showSection, setupEventListeners, etc.) ...
-
-    // Funções de navegação e eventos
-    function showSection(sectionId) {
-        document.querySelectorAll('.section, .main-menu-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        const targetSection = document.getElementById(sectionId);
-        if (targetSection) {
-            targetSection.classList.add('active');
-            if (sectionId === 'consultaSection') {
-                fetchBeneficios();
-            }
-            if (sectionId === 'adminSection') {
-                renderUsersTable();
-            }
-        }
-    }
-
-    function setupEventListeners() {
-        menuButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                showSection(button.dataset.section);
-            });
-        });
-        backButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                showSection(button.dataset.section);
-            });
-        });
-        if (form) { form.addEventListener('submit', handleFormSubmit); }
-        if (editForm) { editForm.addEventListener('submit', handleEditFormSubmit); }
-        if (adminForm) { adminForm.addEventListener('submit', handleAdminFormSubmit); }
-        if (equipamentoSelect) { equipamentoSelect.addEventListener('change', toggleResponsavelField); }
-        if (filterBtn) { filterBtn.addEventListener('click', applyFilters); }
-        if (clearFilterBtn) { clearFilterBtn.addEventListener('click', clearFilters); }
-        if (separateBtn) { separateBtn.addEventListener('click', toggleDateSeparation); }
-        if (exportBtn) { exportBtn.addEventListener('click', exportarCSV); }
-        if (logoutBtn) { logoutBtn.addEventListener('click', handleLogout); }
-
-        const loginForm = document.getElementById('loginForm');
-        if (loginForm) {
-            loginForm.addEventListener('submit', handleLogin);
-            document.getElementById('signup-btn').addEventListener('click', showContactInfo);
-        }
-        if (!window.location.pathname.endsWith('login.html')) {
-            setupAdminUser(); // Garante que o admin seja criado no Firestore
-            checkLoginStatus();
-        }
-    }
-
     function validarCPF(cpf) {
         cpf = cpf.replace(/\D/g, '');
         if (cpf.length !== 11 || /^([0-9])\1+$/.test(cpf)) return false;
@@ -242,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Funções de interação com o Firestore
     async function fetchBeneficios() {
         const snapshot = await beneficiosCollection.get();
         const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -256,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('CPF inválido!');
             return;
         }
-
+        
         const newBeneficio = {
             beneficiario: form.beneficiario.value,
             cpf: form.cpf.value,
