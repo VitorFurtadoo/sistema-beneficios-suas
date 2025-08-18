@@ -32,6 +32,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportBtn = document.getElementById('btn-exportar-csv');
     const logoutBtn = document.getElementById('logout-btn');
 
+    const graficoPeriodoCanvas = document.getElementById('grafico-periodo');
+    const graficoEquipamentoCanvas = document.getElementById('grafico-equipamento');
+    const periodoGraficoSelect = document.getElementById('periodo-grafico');
+    const tipoGraficoPeriodoSelect = document.getElementById('tipo-grafico-periodo');
+    const gerarGraficoPeriodoBtn = document.getElementById('gerar-grafico-periodo');
+    const tipoGraficoEquipamentoSelect = document.getElementById('tipo-grafico-equipamento');
+    const gerarGraficoEquipamentoBtn = document.getElementById('gerar-grafico-equipamento');
+    let graficoPeriodoChart = null;
+    let graficoEquipamentoChart = null;
+    const graficoSection = document.getElementById('graficosSection');
+
     async function setupAdminUser() {
         const adminSnapshot = await usersCollection.where('role', '==', 'admin').limit(1).get();
         if (adminSnapshot.empty) {
@@ -178,68 +189,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo WhatsApp: (91) 99925-9834.');
     }
 
-    function showSection(sectionId) {
-        document.querySelectorAll('.section, .main-menu-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        const targetSection = document.getElementById(sectionId);
-        if (targetSection) {
-            targetSection.classList.add('active');
-            if (sectionId === 'consultaSection') {
-                fetchBeneficios();
-            }
-            if (sectionId === 'adminSection') {
-                renderUsersTable();
-            }
-        }
-    }
-
-    function setupEventListeners() {
-        // Event listeners para a página principal (index.html)
-        if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
-            if (menuButtons) {
-                menuButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        showSection(button.dataset.section);
-                    });
-                });
-            }
-            if (backButtons) {
-                backButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        showSection(button.dataset.section);
-                    });
-                });
-            }
-            if (form) { form.addEventListener('submit', handleFormSubmit); }
-            if (editForm) {
-                editForm.addEventListener('submit', handleEditFormSubmit);
-                document.querySelector('.delete-btn-edit').addEventListener('click', deleteBeneficio);
-            }
-            if (adminForm) { adminForm.addEventListener('submit', handleAdminFormSubmit); }
-            if (equipamentoSelect) { equipamentoSelect.addEventListener('change', toggleResponsavelField); }
-            if (filterBtn) { filterBtn.addEventListener('click', applyFilters); }
-            if (clearFilterBtn) { clearFilterBtn.addEventListener('click', clearFilters); }
-            if (separateBtn) { separateBtn.addEventListener('click', toggleDateSeparation); }
-            if (exportBtn) { exportBtn.addEventListener('click', exportarCSV); }
-            if (logoutBtn) { logoutBtn.addEventListener('click', handleLogout); }
-            checkLoginStatus();
-        }
-        
-        // Event listeners para a página de login (login.html)
-        if (window.location.pathname.endsWith('login.html')) {
-            const loginForm = document.getElementById('loginForm');
-            if (loginForm) {
-                loginForm.addEventListener('submit', handleLogin);
-            }
-            const signupBtn = document.getElementById('signup-btn');
-            if (signupBtn) {
-                signupBtn.addEventListener('click', showContactInfo);
-            }
-            setupAdminUser(); // Cria o usuário admin na página de login, caso não exista
-        }
-    }
-
     function validarCPF(cpf) {
         cpf = cpf.replace(/\D/g, '');
         if (cpf.length !== 11 || /^([0-9])\1+$/.test(cpf)) return false;
@@ -290,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
             responsavel: form.responsavel ? form.responsavel.value : '',
             status: form.status.value,
             observacoes: form.observacoes.value,
-            lastUpdated: new Date().toLocaleString('pt-BR'),
+            lastUpdated: new Date().toLocaleString('pt-BR')
         };
         
         await beneficiosCollection.add(newBeneficio);
@@ -493,6 +442,6 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         document.body.removeChild(link);
     }
-    
+
     setupEventListeners();
 });
