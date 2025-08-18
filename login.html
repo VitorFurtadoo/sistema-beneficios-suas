@@ -6,6 +6,8 @@
     <title>Login - Sistema de Benefícios Eventuais</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
 </head>
 <body class="login-page">
     <div id="loading-overlay">
@@ -15,7 +17,7 @@
     <div class="container">
         <div class="card login-card">
             <div class="header-logo login-header">
-                <img src="logo_semdes.png" alt="Logo SEMDES" class="logo">
+                <img src="imagens/logo_semdes.png" alt="Logo SEMDES" class="logo">
             </div>
             <h1>Sistema de Benefícios Eventuais</h1>
             <form id="loginForm">
@@ -29,15 +31,12 @@
                 </div>
                 <button type="button" id="login-btn" class="submit-btn">Entrar</button>
             </form>
-            <div style="text-align: center; margin-top: 20px;">
+            <div class="signup-container">
                 <p>Não tem um login?</p>
                 <button id="signup-btn" class="secondary-btn">Solicitar Acesso</button>
             </div>
         </div>
     </div>
-    
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
     <script src="js/login.js"></script>
 </body>
 </html>

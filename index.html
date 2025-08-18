@@ -12,25 +12,22 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-    <!-- TELA DE CARREGAMENTO -->
     <div id="loading-overlay">
         <div class="spinner"></div>
         <p>Carregando...</p>
     </div>
 
-    <!-- HEADER / MENU -->
     <header>
         <div class="header-logo">
-            <img src="logo_semdes.png" alt="Logo SEMDES" class="logo">
+            <img src="imagens/logo_semdes.png" alt="Logo SEMDES" class="logo">
             <h1>Sistema de Benefícios Eventuais</h1>
         </div>
-        <div style="text-align:right; margin-bottom:10px;">
+        <div class="user-info">
             <span id="welcome-message"></span>
             <button id="logout-btn" class="secondary-btn">Sair</button>
         </div>
     </header>
 
-    <!-- MENU PRINCIPAL -->
     <div class="main-menu">
         <button class="menu-btn btn-cadastrar" data-section="cadastrarSection">Cadastrar Benefício</button>
         <button class="menu-btn btn-consultar" data-section="consultaSection">Consultar Benefícios</button>
@@ -38,7 +35,6 @@
         <button class="menu-btn btn-admin" data-section="adminSection" id="adminMenuButton" style="display:none;">Admin</button>
     </div>
 
-    <!-- SEÇÃO CADASTRO DE BENEFÍCIO -->
     <section id="cadastrarSection" class="section">
         <button class="back-btn" data-section="mainMenu">← Voltar</button>
         <h2>Cadastrar Benefício</h2>
@@ -57,7 +53,6 @@
         </form>
     </section>
 
-    <!-- SEÇÃO CONSULTA DE BENEFÍCIOS -->
     <section id="consultaSection" class="section">
         <button class="back-btn" data-section="mainMenu">← Voltar</button>
         <h2>Consultar Benefícios</h2>
@@ -76,7 +71,6 @@
         </div>
     </section>
 
-    <!-- SEÇÃO DE EDIÇÃO -->
     <section id="editSection" class="section">
         <button class="back-btn" data-section="consultaSection">← Voltar</button>
         <h2>Editar Benefício</h2>
@@ -96,11 +90,9 @@
         </form>
     </section>
 
-    <!-- SEÇÃO DE GRÁFICOS -->
     <section id="graficosSection" class="section">
         <button class="back-btn" data-section="mainMenu">← Voltar</button>
         <h2>Gráficos de Benefícios</h2>
-
         <div class="graficos-container" id="grafico-periodo-container">
             <canvas id="grafico-periodo"></canvas>
             <div class="controls">
@@ -108,7 +100,6 @@
                 <button id="salvar-pdf-periodo" class="export-btn">Salvar PDF</button>
             </div>
         </div>
-
         <div class="graficos-container" id="grafico-equipamento-container">
             <canvas id="grafico-equipamento"></canvas>
             <div class="controls">
@@ -118,14 +109,13 @@
         </div>
     </section>
 
-    <!-- SEÇÃO ADMIN (USUÁRIOS) -->
     <section id="adminSection" class="section">
         <button class="back-btn" data-section="mainMenu">← Voltar</button>
         <h2>Administração de Usuários</h2>
         <div class="table-wrapper">
             <table id="usersTable">
                 <thead>
-                    <tr><th>Usuário</th><th>Email</th><th>Ativo</th><th>Função</th><th>Ações</th></tr>
+                    <tr><th>Usuário</th><th>Função</th><th>Ativo</th><th>Ações</th></tr>
                 </thead>
                 <tbody></tbody>
             </table>
