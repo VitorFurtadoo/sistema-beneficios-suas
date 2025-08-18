@@ -4,14 +4,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const hideLoading = () => document.getElementById('loading-overlay').style.display = 'none';
 
     // Configuração Firebase
-    const firebaseConfig = {
-        apiKey: "SUA_API_KEY",
-        authDomain: "SEU_AUTH_DOMAIN",
-        projectId: "SEU_PROJECT_ID",
-        storageBucket: "SEU_BUCKET",
-        messagingSenderId: "SEU_SENDER_ID",
-        appId: "SEU_APP_ID"
-    };
+   const firebaseConfig = {
+  apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
+  authDomain: "beneficios-eventuais-suas.firebaseapp.com",
+  projectId: "beneficios-eventuais-suas",
+  storageBucket: "beneficios-eventuais-suas.firebasestorage.app",
+  messagingSenderId: "665210304564",
+  appId: "1:665210304564:web:cf233fd0e56bbfe3d5b261"
+};
 
     if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
