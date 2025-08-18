@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM totalmente carregado. Iniciando a aplicação.");
+
     const firebaseConfig = {
         apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
         authDomain: "beneficios-eventuais-suas.firebaseapp.com",
@@ -189,6 +191,62 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo WhatsApp: (91) 99925-9834.');
     }
 
+    function showSection(sectionId) {
+        console.log(`Tentando exibir a seção: ${sectionId}`);
+        document.querySelectorAll('.section, .main-menu-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        const targetSection = document.getElementById(sectionId);
+        if (targetSection) {
+            targetSection.classList.add('active');
+            if (sectionId === 'consultaSection') {
+                fetchBeneficios();
+            }
+            if (sectionId === 'adminSection') {
+                renderUsersTable();
+            }
+            if (sectionId === 'graficosSection') {
+                gerarGraficoBeneficiosPorPeriodo();
+                gerarGraficoBeneficiosPorEquipamento();
+            }
+        }
+    }
+
+    function setupEventListeners() {
+        console.log("Configurando event listeners...");
+        menuButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                showSection(button.dataset.section);
+            });
+        });
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                showSection(button.dataset.section);
+            });
+        });
+        if (form) { form.addEventListener('submit', handleFormSubmit); }
+        if (editForm) {
+            editForm.addEventListener('submit', handleEditFormSubmit);
+            document.querySelector('.delete-btn-edit').addEventListener('click', deleteBeneficio);
+        }
+        if (adminForm) { adminForm.addEventListener('submit', handleAdminFormSubmit); }
+        if (equipamentoSelect) { equipamentoSelect.addEventListener('change', toggleResponsavelField); }
+        if (filterBtn) { filterBtn.addEventListener('click', applyFilters); }
+        if (clearFilterBtn) { clearFilterBtn.addEventListener('click', clearFilters); }
+        if (separateBtn) { separateBtn.addEventListener('click', toggleDateSeparation); }
+        if (exportBtn) { exportBtn.addEventListener('click', exportarCSV); }
+        if (logoutBtn) { logoutBtn.addEventListener('click', handleLogout); }
+        if (gerarGraficoPeriodoBtn) { gerarGraficoPeriodoBtn.addEventListener('click', gerarGraficoBeneficiosPorPeriodo); }
+        if (gerarGraficoEquipamentoBtn) { gerarGraficoEquipamentoBtn.addEventListener('click', gerarGraficoBeneficiosPorEquipamento); }
+
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', handleLogin);
+            document.getElementById('signup-btn').addEventListener('click', showContactInfo);
+        }
+        console.log("Event listeners configurados.");
+    }
+
     function validarCPF(cpf) {
         cpf = cpf.replace(/\D/g, '');
         if (cpf.length !== 11 || /^([0-9])\1+$/.test(cpf)) return false;
@@ -205,6 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function toggleResponsavelField() {
+        const responsavelInput = document.getElementById('responsavel');
+        const responsavelGroup = document.getElementById('responsavelGroup');
         if (equipamentoSelect.value !== '') {
             responsavelGroup.style.display = 'flex';
             responsavelInput.setAttribute('required', 'required');
@@ -443,5 +503,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(link);
     }
 
+    // Inicialização da aplicação: Apenas se for na página de login
+    if (window.location.pathname.endsWith('login.html')) {
+        setupAdminUser();
+    } else {
+        checkLoginStatus();
+    }
     setupEventListeners();
 });
