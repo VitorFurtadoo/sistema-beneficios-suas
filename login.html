@@ -8,12 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body class="login-page">
-    <!-- Overlay de carregamento -->
     <div id="loading-overlay">
         <div class="spinner"></div>
         <p>Carregando...</p>
     </div>
-
     <div class="container">
         <div class="card login-card">
             <div class="header-logo login-header">
@@ -29,18 +27,17 @@
                     <label for="login-password">Senha</label>
                     <input type="password" id="login-password" name="login-password" placeholder="Sua senha" required>
                 </div>
-                <button type="button" id="login-btn" class="btn submit-btn">Entrar</button>
+                <button type="button" id="login-btn" class="submit-btn">Entrar</button>
             </form>
-            <div class="signup-container">
+            <div style="text-align: center; margin-top: 20px;">
                 <p>Não tem um login?</p>
-                <button id="signup-btn" class="btn secondary-btn">Solicitar Acesso</button>
+                <button id="signup-btn" class="secondary-btn">Solicitar Acesso</button>
             </div>
         </div>
     </div>
     
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
-    <script src="js/script.js"></script>
+    <script src="js/login.js"></script>
 </body>
 </html>
