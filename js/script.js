@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM carregado. Iniciando script.js...");
     const { jsPDF } = window.jspdf;
 
-    // CONFIGURAÇÃO DO FIREBASE
     const firebaseConfig = {
         apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
         authDomain: "beneficios-eventuais-suas.firebaseapp.com",
@@ -19,11 +18,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const beneficiosCollection = db.collection('beneficios');
     const usersCollection = db.collection('users');
 
-    // LOADING OVERLAY (Funções duplicadas, idealmente estariam em um arquivo utilitário)
-    const showLoading = () => document.getElementById('loading-overlay')?.style.display = 'flex';
-    const hideLoading = () => document.getElementById('loading-overlay')?.style.display = 'none';
+    const showLoading = () => {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'flex';
+        }
+    };
+    const hideLoading = () => {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    };
 
-    // CHECAGEM DE LOGIN E REDIRECIONAMENTO
     const checkLoginStatus = () => {
         const userStr = localStorage.getItem('currentUser');
         if (!userStr) {
@@ -46,14 +53,13 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'login.html';
     };
 
-    // NAVEGAÇÃO CORRIGIDA
     const showSection = (sectionId) => {
         console.log(`Tentando mostrar a seção: ${sectionId}`);
         document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
-        document.getElementById('mainMenu').classList.remove('active'); // Garante que o menu principal comece escondido
+        document.getElementById('mainMenu').classList.remove('active');
         
         if (sectionId === 'mainMenu') {
-            document.getElementById('mainMenu').classList.add('active'); // Mostra o menu principal
+            document.getElementById('mainMenu').classList.add('active');
         } else {
             const target = document.getElementById(sectionId);
             if (target) {
@@ -66,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // CRUD BENEFÍCIOS
     const fetchBeneficios = async () => {
         showLoading();
         try {
@@ -141,7 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally { hideLoading(); }
     };
 
-    // ADMIN
     const renderUsersTable = async () => {
         showLoading();
         try {
@@ -164,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally { hideLoading(); }
     };
 
-    // EVENT DELEGATION
     document.getElementById('beneficiosTable')?.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
         if (e.target.classList.contains('edit-btn')) {
@@ -192,7 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm("Deseja realmente excluir?")) return;
             try {
                 const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-                // Checagem de segurança simples no lado do cliente
                 if (currentUser.role !== 'admin') {
                     alert('Você não tem permissão para excluir usuários.');
                     return;
@@ -207,29 +209,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // EXPORTAR CSV
     const exportarCSV = async () => { /* ... sua lógica de exportar CSV aqui */ };
     document.getElementById('btn-exportar-csv')?.addEventListener('click', exportarCSV);
 
-    // GRÁFICOS
     const salvarGraficoComoPDF = (containerId, titulo) => { /* ... sua lógica de gráficos aqui */ };
     document.getElementById('salvar-pdf-periodo')?.addEventListener('click', () => salvarGraficoComoPDF('grafico-periodo-container', 'Benefícios por Período'));
     document.getElementById('salvar-pdf-equipamento')?.addEventListener('click', () => salvarGraficoComoPDF('grafico-equipamento-container', 'Benefícios por Equipamento'));
     
-    // INICIALIZAÇÃO
     console.log("Verificando status de login...");
     if(checkLoginStatus()){
         console.log("Usuário logado. Anexando event listeners aos botões.");
-        // Adicionando um ID ao menu principal no HTML para a navegação funcionar
-        document.querySelector('.main-menu').id = 'mainMenu';
-
         document.querySelectorAll('.menu-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
         document.querySelectorAll('.back-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
         document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
         document.getElementById('beneficioForm')?.addEventListener('submit', handleFormSubmit);
         document.getElementById('editForm')?.addEventListener('submit', handleEditFormSubmit);
 
-        // Ao carregar a página, mostra a seção principal por padrão.
         showSection('mainMenu');
     }
 });

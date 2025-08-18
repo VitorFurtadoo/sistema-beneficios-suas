@@ -1,6 +1,5 @@
 /* js/login.js - Lógica de Login */
 
-// CONFIGURAÇÃO DO FIREBASE (a mesma que você já tem)
 const firebaseConfig = {
     apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
     authDomain: "beneficios-eventuais-suas.firebaseapp.com",
@@ -10,42 +9,40 @@ const firebaseConfig = {
     appId: "1:665210304564:web:cf233fd0e56bbfe3d5b261"
 };
 
-// Inicialização do Firebase
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-// Funções de loading
-const showLoading = () => document.getElementById('loading-overlay').style.display = 'flex';
-const hideLoading = () => document.getElementById('loading-overlay').style.display = 'none';
+const showLoading = () => {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+    }
+};
 
-// Lógica de Login
+const hideLoading = () => {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-btn').addEventListener('click', async () => {
         showLoading();
         const username = document.getElementById('login-username').value.trim();
         const password = document.getElementById('login-password').value.trim();
 
-        // IMPORTANTE: Esta é uma referência de como o código *deveria* ser.
-        // Você precisa migrar para o Firebase Authentication. A lógica abaixo
-        // é APENAS um exemplo, e não é segura.
-        console.log("Atenção: A lógica de login precisa ser migrada para o Firebase Authentication para ser segura.");
-        // A lógica de login segura com o Firebase Auth seria:
-        // try {
-        //     await firebase.auth().signInWithEmailAndPassword(email, password);
-        //     window.location.href = 'index.html';
-        // } catch (error) {
-        //     // Tratar erro
-        // }
-
-        // A lógica do seu código original (insegura) está aqui:
+        // **ATENÇÃO:** Esta lógica de login é INSEGURA. 
+        // Você deve migrar para o Firebase Authentication para gerenciar usuários e senhas de forma segura.
+        // A lógica abaixo é a sua implementação original, que tem vulnerabilidades.
         const db = firebase.firestore();
         const usersCollection = db.collection('users');
 
         try {
             const query = await usersCollection
                 .where('username', '==', username)
-                .where('password', '==', password) // ESTA LINHA É INSEGURA
+                .where('password', '==', password) 
                 .get();
 
             if (!query.empty) {
