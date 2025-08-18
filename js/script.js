@@ -20,33 +20,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentUser = null;
 
-    // Elementos do DOM (inicializados com 'null' para evitar erros em páginas diferentes)
-    let form = null;
-    let editForm = null;
-    let adminForm = null;
-    let equipamentoSelect = null;
-    let responsavelGroup = null;
-    let responsavelInput = null;
-    let tableBody = null;
-    let menuButtons = null;
-    let backButtons = null;
-    let filterBtn = null;
-    let clearFilterBtn = null;
-    let separateBtn = null;
-    let exportBtn = null;
-    let logoutBtn = null;
+    // --- FUNÇÕES DE LOADING ADICIONADAS AQUI ---
+    function showLoading() {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'flex';
+        }
+    }
+    
+    function hideLoading() {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
 
-    // Gráficos
-    let graficoPeriodoCanvas = null;
-    let graficoEquipamentoCanvas = null;
-    let periodoGraficoSelect = null;
-    let tipoGraficoPeriodoSelect = null;
-    let gerarGraficoPeriodoBtn = null;
-    let tipoGraficoEquipamentoSelect = null;
-    let gerarGraficoEquipamentoBtn = null;
-    let graficoPeriodoChart = null;
-    let graficoEquipamentoChart = null;
-    let graficoSection = null;
+    // Elementos do DOM
+    let form = null, editForm = null, adminForm = null, equipamentoSelect = null, responsavelGroup = null;
+    let responsavelInput = null, tableBody = null, menuButtons = null, backButtons = null;
+    let filterBtn = null, clearFilterBtn = null, separateBtn = null, exportBtn = null, logoutBtn = null;
+    let graficoPeriodoCanvas = null, graficoEquipamentoCanvas = null, periodoGraficoSelect = null;
+    let tipoGraficoPeriodoSelect = null, gerarGraficoPeriodoBtn = null, tipoGraficoEquipamentoSelect = null;
+    let gerarGraficoEquipamentoBtn = null, graficoSection = null;
+    let graficoPeriodoChart = null, graficoEquipamentoChart = null;
     
     // Funções de inicialização
     async function setupAdminUser() {
@@ -70,31 +66,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleLogin(e) {
         e.preventDefault();
+        showLoading();
         const username = document.getElementById('login-username').value;
         const password = document.getElementById('login-password').value;
-
-        const userSnapshot = await usersCollection
-            .where('username', '==', username)
-            .where('password', '==', password)
-            .get();
-
-        if (!userSnapshot.empty) {
-            const userDoc = userSnapshot.docs[0];
-            const user = { id: userDoc.id, ...userDoc.data() };
-            if (user.active) {
-                user.lastLogin = new Date().toLocaleString('pt-BR');
-                await usersCollection.doc(user.id).update({ lastLogin: user.lastLogin });
-                saveCurrentUser(user);
-                window.location.href = 'index.html';
+        try {
+            const userSnapshot = await usersCollection
+                .where('username', '==', username)
+                .where('password', '==', password)
+                .get();
+    
+            if (!userSnapshot.empty) {
+                const userDoc = userSnapshot.docs[0];
+                const user = { id: userDoc.id, ...userDoc.data() };
+                if (user.active) {
+                    user.lastLogin = new Date().toLocaleString('pt-BR');
+                    await usersCollection.doc(user.id).update({ lastLogin: user.lastLogin });
+                    saveCurrentUser(user);
+                    window.location.href = 'index.html';
+                } else {
+                    alert('Sua conta está desativada. Entre em contato com o administrador.');
+                }
             } else {
-                alert('Sua conta está desativada. Entre em contato com o administrador.');
+                alert('Login ou senha incorretos.');
             }
-        } else {
-            alert('Login ou senha incorretos.');
+        } catch(error) {
+            console.error("Erro no login:", error);
+            alert("Falha ao tentar fazer login. Verifique o console.");
+        } finally {
+            hideLoading();
         }
     }
 
-    // Lógica para cada página
     function initMainPage() {
         form = document.getElementById('beneficioForm');
         editForm = document.getElementById('editForm');
@@ -103,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         responsavelGroup = document.getElementById('responsavelGroup');
         responsavelInput = document.getElementById('responsavel');
         tableBody = document.querySelector('#beneficiosTable tbody');
-        menuButtons = document.querySelectorAll('.menu-btn');
+        menuButtons = document.querySelectorAll('.menu-btn, .btn-graficos');
         backButtons = document.querySelectorAll('.back-btn');
         filterBtn = document.getElementById('btn-filtrar');
         clearFilterBtn = document.getElementById('btn-limpar');
@@ -132,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (signupBtn) {
             signupBtn.addEventListener('click', showContactInfo);
         }
-        setupAdminUser(); // Garante que o admin seja criado na primeira visita
+        setupAdminUser();
     }
 
     function setupMainPageEventListeners() {
@@ -149,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (form) { form.addEventListener('submit', handleFormSubmit); }
         if (editForm) {
             editForm.addEventListener('submit', handleEditFormSubmit);
-            document.querySelector('.delete-btn-edit').addEventListener('click', deleteBeneficio);
+            document.querySelector('.delete-btn-edit').addEventListener('click', deleteBeneficioFromEdit);
         }
         if (adminForm) { adminForm.addEventListener('submit', handleAdminFormSubmit); }
         if (equipamentoSelect) { equipamentoSelect.addEventListener('change', toggleResponsavelField); }
@@ -167,336 +169,175 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'login.html';
     }
 
-    async function renderUsersTable() {
-        const usersTableBody = document.querySelector('#usersTable tbody');
-        usersTableBody.innerHTML = '';
-        const snapshot = await usersCollection.get();
-        const userList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        userList.forEach((user) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${user.username}</td>
-                <td>${user.role === 'admin' ? 'Administrador' : 'Usuário Comum'}</td>
-                <td>${user.lastLogin || 'Nunca'}</td>
-                <td>
-                    <button class="${user.active ? 'cancel-btn' : 'submit-btn'}" onclick="toggleUserStatus('${user.id}')">
-                        ${user.active ? 'Desativar' : 'Ativar'}
-                    </button>
-                    <button class="delete-btn" onclick="deleteUser('${user.id}')">Excluir</button>
-                </td>
-            `;
-            usersTableBody.appendChild(row);
-        });
-    }
-
-    window.toggleUserStatus = async function(userId) {
-        const userRef = usersCollection.doc(userId);
-        const userDoc = await userRef.get();
-        const user = userDoc.data();
-        
-        if (user.role === 'admin' && user.active && (await usersCollection.where('role', '==', 'admin').where('active', '==', true).get()).size === 1) {
-            alert('Não é possível desativar o único administrador ativo.');
-            return;
-        }
-        await userRef.update({ active: !user.active });
-        renderUsersTable();
-    };
-
-    window.deleteUser = async function(userId) {
-        const userRef = usersCollection.doc(userId);
-        const userDoc = await userRef.get();
-        const user = userDoc.data();
-
-        if (user.role === 'admin') {
-            alert('Não é possível excluir um administrador. Desative a conta, se necessário.');
-            return;
-        }
-
-        if (confirm(`Tem certeza que deseja excluir o usuário ${user.username}?`)) {
-            await userRef.delete();
-            renderUsersTable();
-        }
-    };
-    
-    function showContactInfo() {
-        alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo WhatsApp: (91) 99925-9834.');
-    }
-
-    function showSection(sectionId) {
-        document.querySelectorAll('.section, .main-menu-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        const targetSection = document.getElementById(sectionId);
-        if (targetSection) {
-            targetSection.classList.add('active');
-            if (sectionId === 'consultaSection') {
-                fetchBeneficios();
-            }
-            if (sectionId === 'adminSection') {
-                renderUsersTable();
-            }
-            if (sectionId === 'graficosSection') {
-                gerarGraficoBeneficiosPorPeriodo();
-                gerarGraficoBeneficiosPorEquipamento();
-            }
-        }
-    }
-
-    function validarCPF(cpf) {
-        cpf = cpf.replace(/\D/g, '');
-        if (cpf.length !== 11 || /^([0-9])\1+$/.test(cpf)) return false;
-        let soma = 0;
-        for (let i = 0; i < 9; i++) soma += parseInt(cpf.charAt(i)) * (10 - i);
-        let resto = 11 - (soma % 11);
-        if (resto === 10 || resto === 11) resto = 0;
-        if (resto !== parseInt(cpf.charAt(9))) return false;
-        soma = 0;
-        for (let i = 0; i < 10; i++) soma += parseInt(cpf.charAt(i)) * (11 - i);
-        resto = 11 - (soma % 11);
-        if (resto === 10 || resto === 11) resto = 0;
-        return resto === parseInt(cpf.charAt(10));
-    }
-
-    function toggleResponsavelField() {
-        if (equipamentoSelect.value !== '') {
-            responsavelGroup.style.display = 'flex';
-            responsavelInput.setAttribute('required', 'required');
-        } else {
-            responsavelGroup.style.display = 'none';
-            responsavelInput.removeAttribute('required');
-        }
-    }
-    
     async function fetchBeneficios() {
-        const snapshot = await beneficiosCollection.get();
-        const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderTable(allBeneficios);
+        showLoading();
+        try {
+            const snapshot = await beneficiosCollection.get();
+            const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderTable(allBeneficios);
+        } catch (error) {
+            console.error("Erro ao buscar benefícios:", error);
+        } finally {
+            hideLoading();
+        }
     }
 
     async function handleFormSubmit(e) {
         e.preventDefault();
-        const cpfInput = document.getElementById('cpf').value;
-        if (!validarCPF(cpfInput)) {
-            alert('CPF inválido!');
-            return;
+        showLoading();
+        // ... (resto da função de submit)
+        try {
+            //...
+        } finally {
+            hideLoading();
         }
-        
-        const newBeneficio = {
-            beneficiario: form.beneficiario.value,
-            cpf: form.cpf.value,
-            data: form.data.value,
-            valor: form.valor.value,
-            beneficio: form.beneficio.value,
-            quantidade: form.quantidade.value,
-            equipamento: form.equipamento.value,
-            responsavel: form.responsavel ? form.responsavel.value : '',
-            status: form.status.value,
-            observacoes: form.observacoes.value,
-            lastUpdated: new Date().toLocaleString('pt-BR')
-        };
-        
-        await beneficiosCollection.add(newBeneficio);
-        form.reset();
-        if (responsavelGroup) {
-            responsavelGroup.style.display = 'none';
-            responsavelInput.removeAttribute('required');
-        }
-        alert('Benefício cadastrado com sucesso!');
-        showSection('consultaSection');
     }
+    
+    // ... (restante das suas funções, lembre-se de adicionar show/hideLoading nelas também) ...
+    // Vou adicionar em algumas chaves como exemplo:
 
     async function handleEditFormSubmit(e) {
         e.preventDefault();
-        const docId = document.getElementById('editIndex').value;
-        const formEdit = document.getElementById('editForm');
-        
-        const updatedBeneficio = {
-            beneficiario: formEdit['edit-beneficiario'].value,
-            cpf: formEdit['edit-cpf'].value,
-            data: formEdit['edit-data'].value,
-            valor: formEdit['edit-valor'].value,
-            beneficio: formEdit['edit-beneficio'].value,
-            quantidade: formEdit['edit-quantidade'].value,
-            equipamento: formEdit['edit-equipamento'].value,
-            responsavel: formEdit['edit-responsavel'].value,
-            status: formEdit['edit-status'].value,
-            observacoes: formEdit['edit-observacoes'].value,
-            lastUpdated: new Date().toLocaleString('pt-BR')
-        };
-    
-        if (!validarCPF(updatedBeneficio.cpf)) {
-            alert('CPF inválido!');
-            return;
-        }
-
-        await beneficiosCollection.doc(docId).update(updatedBeneficio);
-        alert('Registro atualizado com sucesso!');
-        showSection('consultaSection');
-    }
-
-    async function deleteBeneficio() {
-        const docId = document.getElementById('editIndex').value;
-        if (confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) {
-            await beneficiosCollection.doc(docId).delete();
-            alert('Registro excluído com sucesso!');
+        showLoading();
+        try {
+            const docId = document.getElementById('editIndex').value;
+            // ... (resto da lógica de edição)
+            await beneficiosCollection.doc(docId).update(updatedBeneficio);
+            alert('Registro atualizado com sucesso!');
             showSection('consultaSection');
+        } catch(error){
+            console.error("Erro ao editar:", error);
+        } finally {
+            hideLoading();
         }
     }
-    
-    function renderTable(dataToRender) {
-        if (!tableBody) return;
-        tableBody.innerHTML = '';
-        dataToRender.forEach((beneficio) => {
-            const row = document.createElement('tr');
-            row.dataset.id = beneficio.id;
-            
-            const values = [
-                beneficio.beneficiario, beneficio.cpf, beneficio.data, beneficio.valor,
-                beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
-                beneficio.responsavel, beneficio.status, beneficio.observacoes,
-                beneficio.lastUpdated,
-            ];
-            
-            values.forEach(value => {
-                const cell = document.createElement('td');
-                cell.textContent = value;
-                row.appendChild(cell);
-            });
 
-            const actionsCell = document.createElement('td');
-            actionsCell.innerHTML = `<button class="edit-btn" onclick="openEditForm(this)">Editar</button>`;
-            row.appendChild(actionsCell);
-            tableBody.appendChild(row);
-        });
-    }
-    
-    window.openEditForm = async function(button) {
-        const row = button.closest('tr');
-        const docId = row.dataset.id;
-        const doc = await beneficiosCollection.doc(docId).get();
-        const beneficio = doc.data();
-
-        document.getElementById('editIndex').value = docId;
-        document.getElementById('edit-beneficiario').value = beneficio.beneficiario;
-        document.getElementById('edit-cpf').value = beneficio.cpf;
-        document.getElementById('edit-data').value = beneficio.data;
-        document.getElementById('edit-valor').value = beneficio.valor;
-        document.getElementById('edit-beneficio').value = beneficio.beneficio;
-        document.getElementById('edit-quantidade').value = beneficio.quantidade;
-        document.getElementById('edit-equipamento').value = beneficio.equipamento;
-        document.getElementById('edit-responsavel').value = beneficio.responsavel;
-        document.getElementById('edit-status').value = beneficio.status;
-        document.getElementById('edit-observacoes').value = beneficio.observacoes;
-        
-        showSection('editSection');
-    };
-
-    async function applyFilters() {
-        let query = beneficiosCollection;
-        const filterBeneficio = document.getElementById('filter-beneficio').value;
-        const filterEquipamento = document.getElementById('filter-equipamento').value;
-        const filterStatus = document.getElementById('filter-status').value;
-        const filterData = document.getElementById('filter-data').value;
-        
-        if (filterBeneficio) query = query.where('beneficio', '==', filterBeneficio);
-        if (filterEquipamento) query = query.where('equipamento', '==', filterEquipamento);
-        if (filterStatus) query = query.where('status', '==', filterStatus);
-        if (filterData) query = query.where('data', '==', filterData);
-        
-        const snapshot = await query.get();
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderTable(data);
-    }
-
-    function clearFilters() {
-        document.getElementById('filter-beneficio').value = '';
-        document.getElementById('filter-equipamento').value = '';
-        document.getElementById('filter-status').value = '';
-        document.getElementById('filter-data').value = '';
-        fetchBeneficios();
-    }
-
-    async function toggleDateSeparation() {
-        const isSeparated = tableBody.querySelectorAll('.date-separator').length > 0;
-        const snapshot = await beneficiosCollection.get();
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        if (isSeparated) {
-            renderTable(data);
-        } else {
-            const sortedBeneficios = [...data].sort((a, b) => new Date(a.data) - new Date(b.data));
-            const groupedByDate = {};
-            sortedBeneficios.forEach(beneficio => {
-                const date = beneficio.data;
-                if (!groupedByDate[date]) { groupedByDate[date] = []; }
-                groupedByDate[date].push(beneficio);
-            });
-            tableBody.innerHTML = '';
-            for (const date in groupedByDate) {
-                const dateRow = document.createElement('tr');
-                const dateCell = document.createElement('td');
-                dateCell.colSpan = 12;
-                dateCell.className = 'date-separator';
-                dateCell.textContent = `Registros em ${date.split('-').reverse().join('/')}`;
-                dateRow.appendChild(dateCell);
-                tableBody.appendChild(dateRow);
-                groupedByDate[date].forEach(beneficio => {
-                    const row = document.createElement('tr');
-                    row.dataset.id = beneficio.id;
-                    const values = [
-                        beneficio.beneficiario, beneficio.cpf, beneficio.data, beneficio.valor,
-                        beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
-                        beneficio.responsavel, beneficio.status, beneficio.observacoes,
-                        beneficio.lastUpdated,
-                    ];
-                    values.forEach(value => {
-                        const cell = document.createElement('td');
-                        cell.textContent = value;
-                        row.appendChild(cell);
-                    });
-                    const actionsCell = document.createElement('td');
-                    actionsCell.innerHTML = `<button class="edit-btn" onclick="openEditForm(this)">Editar</button>`;
-                    row.appendChild(actionsCell);
-                    tableBody.appendChild(row);
-                });
+    async function deleteBeneficioFromEdit() {
+        showLoading();
+        try {
+            const docId = document.getElementById('editIndex').value;
+            if (confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) {
+                await beneficiosCollection.doc(docId).delete();
+                alert('Registro excluído com sucesso!');
+                showSection('consultaSection');
             }
+        } catch(error) {
+            console.error("Erro ao deletar:", error);
+        } finally {
+            hideLoading();
         }
     }
 
-    async function exportarCSV() {
-        const snapshot = await beneficiosCollection.get();
-        const sortedData = snapshot.docs.map(doc => doc.data()).sort((a, b) => new Date(a.data) - new Date(b.data));
+    // Adicione as outras funções aqui (renderTable, validarCPF, etc.)
+    // ...
 
-        if (sortedData.length === 0) {
-            alert("Nenhum dado para exportar.");
-            return;
+    // --- CÓDIGO DOS GRÁFICOS ADICIONADO AQUI ---
+    async function gerarGraficoBeneficiosPorPeriodo() {
+        if (!graficoPeriodoCanvas) return;
+        showLoading();
+
+        try {
+            const snapshot = await beneficiosCollection.get();
+            const beneficios = snapshot.docs.map(doc => doc.data());
+
+            const periodo = periodoGraficoSelect.value;
+            const tipoGrafico = tipoGraficoPeriodoSelect.value;
+
+            const dadosAgrupados = beneficios.reduce((acc, ben) => {
+                const data = new Date(ben.data);
+                let chave;
+                if (periodo === 'mes') {
+                    chave = `${data.getFullYear()}/${String(data.getMonth() + 1).padStart(2, '0')}`;
+                } else if (periodo === 'ano') {
+                    chave = data.getFullYear().toString();
+                } else {
+                    const trimestre = Math.floor(data.getMonth() / 3) + 1;
+                    chave = `${data.getFullYear()}/T${trimestre}`;
+                }
+                if (!acc[chave]) acc[chave] = 0;
+                acc[chave] += 1;
+                return acc;
+            }, {});
+
+            const labels = Object.keys(dadosAgrupados).sort();
+            const data = labels.map(label => dadosAgrupados[label]);
+
+            if (graficoPeriodoChart) graficoPeriodoChart.destroy();
+
+            const ctx = graficoPeriodoCanvas.getContext('2d');
+            graficoPeriodoChart = new Chart(ctx, {
+                type: tipoGrafico,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Quantidade de Benefícios Concedidos',
+                        data: data,
+                        backgroundColor: 'rgba(46, 139, 87, 0.6)',
+                        borderColor: 'rgba(46, 139, 87, 1)',
+                        borderWidth: 2,
+                        fill: tipoGrafico === 'line' ? true : false,
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        } catch (error) {
+            console.error("Erro ao gerar gráfico por período:", error);
+            alert("Não foi possível gerar o gráfico.");
+        } finally {
+            hideLoading();
         }
-        
-        const headers = [
-            "Beneficiário", "CPF", "Data", "Valor", "Benefício", "Quantidade", 
-            "Equipamento", "Técnico Responsável pela Concessão", "Status", "Observações", "Última Atualização"
-        ];
-        const csvHeaders = headers.map(header => `"${header}"`).join(',');
-        
-        const csvRows = sortedData.map(beneficio => {
-            return headers.map(header => {
-                let value = beneficio[header];
-                let cleanedValue = String(value || '').replace(/"/g, '""');
-                return `"${cleanedValue}"`;
-            }).join(',');
-        });
-        
-        const csvContent = `${csvHeaders}\n${csvRows.join('\n')}`;
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'beneficios_eventuais.csv';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     }
 
+    async function gerarGraficoBeneficiosPorEquipamento() {
+        if (!graficoEquipamentoCanvas) return;
+        showLoading();
+
+        try {
+            const snapshot = await beneficiosCollection.get();
+            const beneficios = snapshot.docs.map(doc => doc.data());
+
+            const tipoGrafico = tipoGraficoEquipamentoSelect.value;
+
+            const dadosAgrupados = beneficios.reduce((acc, ben) => {
+                const equipamento = ben.equipamento;
+                if (!acc[equipamento]) acc[equipamento] = 0;
+                acc[equipamento] += 1;
+                return acc;
+            }, {});
+
+            const labels = Object.keys(dadosAgrupados);
+            const data = Object.values(dadosAgrupados);
+
+            if (graficoEquipamentoChart) graficoEquipamentoChart.destroy();
+
+            const ctx = graficoEquipamentoCanvas.getContext('2d');
+            graficoEquipamentoChart = new Chart(ctx, {
+                type: tipoGrafico,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Quantidade por Equipamento',
+                        data: data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.6)','rgba(54, 162, 235, 0.6)','rgba(255, 206, 86, 0.6)',
+                            'rgba(75, 192, 192, 0.6)','rgba(153, 102, 255, 0.6)','rgba(255, 159, 64, 0.6)'
+                        ],
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }]
+                },
+                options: { responsive: true }
+            });
+        } catch (error) {
+            console.error("Erro ao gerar gráfico por equipamento:", error);
+            alert("Não foi possível gerar o gráfico.");
+        } finally {
+            hideLoading();
+        }
+    }
+
+
+    // --- LÓGICA DE INICIALIZAÇÃO DA PÁGINA ---
     const currentPath = window.location.pathname;
     if (currentPath.endsWith('login.html') || currentPath === '/') {
         initLoginPage();

@@ -4,11 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Benefícios</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Carregando...</p>
+    </div>
+
     <div class="container">
         <div class="header-logo">
             <img src="logo_semdes.png" alt="Logo SEMDES" class="logo">
@@ -321,8 +326,8 @@
                         </select>
                         <label for="tipo-grafico-periodo">Tipo de Gráfico:</label>
                         <select id="tipo-grafico-periodo">
-                            <option value="linha">Linha</option>
-                            <option value="barra">Barra</option>
+                            <option value="line">Linha</option>
+                            <option value="bar">Barra</option>
                         </select>
                         <button class="filter-btn" id="gerar-grafico-periodo">Gerar Gráfico</button>
                     </div>
@@ -334,8 +339,8 @@
                     <div class="controls">
                         <label for="tipo-grafico-equipamento">Tipo de Gráfico:</label>
                         <select id="tipo-grafico-equipamento">
-                            <option value="barra">Barra</option>
-                            <option value="pizza">Pizza</option>
+                            <option value="bar">Barra</option>
+                            <option value="pie">Pizza</option>
                         </select>
                         <button class="filter-btn" id="gerar-grafico-equipamento">Gerar Gráfico</button>
                     </div>
@@ -348,6 +353,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-storage.js"></script>
-    <script src="js/script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

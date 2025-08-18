@@ -98,6 +98,9 @@ h1 {
 .btn-exportar:hover { background-color: #d39e00; }
 .btn-admin { background-color: #6c757d; }
 .btn-admin:hover { background-color: #5a6268; }
+.btn-graficos { background-color: #fd7e14; } /* Cor para o botão de gráficos */
+.btn-graficos:hover { background-color: #e36a05; }
+
 /* Estilos para as seções */
 .section {
     display: none;
@@ -237,7 +240,6 @@ tbody tr:nth-child(even) {
 tbody tr:hover {
     background-color: #f1f1f1;
 }
-/* Estilos da nova notificação */
 .last-updated-text {
     display: block;
     text-align: right;
@@ -246,7 +248,6 @@ tbody tr:hover {
     color: #666;
     margin-bottom: 15px;
 }
-/* Estilos para o login */
 .login-page {
     display: flex;
     justify-content: center;
@@ -258,7 +259,6 @@ tbody tr:hover {
     max-width: 400px;
     width: 100%;
 }
-/* Estilos para a área de filtro */
 .filter-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -305,7 +305,6 @@ tbody tr:hover {
 .delete-btn:hover {
     background-color: #c82333;
 }
-/* Estilos para a separação por data */
 .date-separator {
     background-color: #e9ecef;
     color: var(--text-color);
@@ -316,15 +315,62 @@ tbody tr:hover {
     text-align: center;
     font-size: 1.1em;
 }
-/* Animações */
+/* Gráficos */
+.graficos-container {
+    margin-bottom: 40px;
+}
+.controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
-/* Responsividade */
+
 @media (max-width: 768px) {
     .main-menu {
         flex-direction: column;
         align-items: stretch;
     }
+}
+
+/* --- ESTILOS DA TELA DE CARREGAMENTO ADICIONADOS AQUI --- */
+#loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: none; /* Começa escondido */
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 9999;
+}
+
+.spinner {
+    border: 8px solid #f3f3f3; /* Cinza claro */
+    border-top: 8px solid var(--primary-color); /* Verde do sistema */
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1.5s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#loading-overlay p {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--primary-color);
 }
