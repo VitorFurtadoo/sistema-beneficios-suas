@@ -1,5 +1,3 @@
-/* js/login.js - Lógica de Login */
-
 const firebaseConfig = {
     apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
     authDomain: "beneficios-eventuais-suas.firebaseapp.com",
@@ -38,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const userCredential = await auth.signInWithEmailAndPassword(email, password);
             const user = userCredential.user;
             
-            // Busca o documento do usuário no Firestore com o UID do Firebase Auth
             const userDoc = await usersCollection.doc(user.uid).get();
 
             if (userDoc.exists) {
@@ -48,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.location.href = 'index.html';
                 } else {
                     alert('Sua conta está desativada.');
-                    await auth.signOut(); // Desloga o usuário
+                    await auth.signOut();
                 }
             } else {
                 alert('Documento do usuário não encontrado. Contate o administrador.');
