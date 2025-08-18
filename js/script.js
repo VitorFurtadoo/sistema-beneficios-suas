@@ -1,4 +1,4 @@
-/* CÓDIGO COMPLETO E UNIFICADO */
+/* CÓDIGO JAVASCRIPT FINAL E REVISADO */
 document.addEventListener('DOMContentLoaded', () => {
     // IMPORTA AS BIBLIOTECAS GLOBAIS
     const { jsPDF } = window.jspdf;
@@ -6,13 +6,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // CONFIGURAÇÃO DO FIREBASE
     // **IMPORTANTE**: Substitua pelos seus dados reais do Firebase
     const firebaseConfig = {
-  apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
-  authDomain: "beneficios-eventuais-suas.firebaseapp.com",
-  projectId: "beneficios-eventuais-suas",
-  storageBucket: "beneficios-eventuais-suas.firebasestorage.app",
-  messagingSenderId: "665210304564",
-  appId: "1:665210304564:web:cf233fd0e56bbfe3d5b261"
-};
+        apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
+        authDomain: "beneficios-eventuais-suas.firebaseapp.com",
+        projectId: "beneficios-eventuais-suas",
+        storageBucket: "beneficios-eventuais-suas.appspot.com",
+        messagingSenderId: "665210304564",
+        appId: "1:665210304564:web:cf233fd0e56bbfe3d5b261"
+    };
 
     if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let graficoPeriodoChart = null, graficoEquipamentoChart = null;
 
     // FUNÇÕES DE LOGIN E AUTENTICAÇÃO
-    const handleLogin = async (e) => {
+    const handleLogin = async () => {
         showLoading();
         const username = document.getElementById('login-username').value;
         const password = document.getElementById('login-password').value;
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (targetSection) {
             targetSection.classList.add('active');
             if (sectionId === 'consultaSection') fetchBeneficios();
-            if (sectionId === 'adminSection') renderUsersTable(); // Exemplo
+            if (sectionId === 'adminSection') renderUsersTable();
         }
     };
 
@@ -118,11 +118,14 @@ document.addEventListener('DOMContentLoaded', () => {
         data.forEach(beneficio => {
             const row = tableBody.insertRow();
             row.dataset.id = beneficio.id;
+            const dataObj = new Date(beneficio.data + 'T03:00:00');
+            const dataFormatada = !isNaN(dataObj.getTime()) ? dataObj.toLocaleDateString('pt-BR') : 'Data inválida';
+            
             row.innerHTML = `
                 <td>${beneficio.beneficiario || ''}</td>
                 <td>${beneficio.cpf || ''}</td>
-                <td>${new Date(beneficio.data + 'T00:00:00').toLocaleDateString('pt-BR') || ''}</td>
-                <td>${typeof beneficio.valor === 'number' ? beneficio.valor.toFixed(2) : beneficio.valor || ''}</td>
+                <td>${dataFormatada}</td>
+                <td>${typeof beneficio.valor === 'number' ? beneficio.valor.toFixed(2) : (beneficio.valor || '')}</td>
                 <td>${beneficio.beneficio || ''}</td>
                 <td>${beneficio.quantidade || ''}</td>
                 <td>${beneficio.equipamento || ''}</td>
@@ -135,7 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
     
-    // Disponibiliza a função globalmente para o onclick
     window.openEditForm = async (id) => {
         showLoading();
         try {
@@ -166,12 +168,13 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         showLoading();
         try {
-            const formData = new FormData(e.target);
+            const form = e.target;
+            const formData = new FormData(form);
             const newBeneficio = Object.fromEntries(formData.entries());
             newBeneficio.lastUpdated = new Date().toLocaleString('pt-BR');
             await beneficiosCollection.add(newBeneficio);
             alert('Benefício cadastrado com sucesso!');
-            e.target.reset();
+            form.reset();
             showSection('consultaSection');
         } catch(error) {
             console.error("Erro ao cadastrar:", error);
@@ -199,14 +202,16 @@ document.addEventListener('DOMContentLoaded', () => {
             hideLoading();
         }
     };
+    
+    const renderUsersTable = () => { /* Adicionar lógica de admin aqui */ };
 
     // FUNÇÕES DE EXPORTAÇÃO E PDF
-    const exportarCSV = async () => { /* ... (código já completo) ... */ };
-    const salvarGraficoComoPDF = (containerId, titulo) => { /* ... (código já completo) ... */ };
+    const exportarCSV = async () => { /* ... (código da função) ... */ };
+    const salvarGraficoComoPDF = (containerId, titulo) => { /* ... (código da função) ... */ };
 
     // FUNÇÕES DE GRÁFICOS
-    const gerarGraficoBeneficiosPorPeriodo = async () => { /* ... (código já completo) ... */ };
-    const gerarGraficoBeneficiosPorEquipamento = async () => { /* ... (código já completo) ... */ };
+    const gerarGraficoBeneficiosPorPeriodo = async () => { /* ... (código da função) ... */ };
+    const gerarGraficoBeneficiosPorEquipamento = async () => { /* ... (código da função) ... */ };
 
     // INICIALIZAÇÃO DA PÁGINA
     const initPage = () => {
@@ -215,17 +220,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('login-btn')?.addEventListener('click', handleLogin);
             document.getElementById('signup-btn')?.addEventListener('click', showContactInfo);
         } else if (checkLoginStatus()) {
-            // Event Listeners da página principal
             document.querySelectorAll('.menu-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
             document.querySelectorAll('.back-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
             document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
             document.getElementById('btn-exportar-csv')?.addEventListener('click', exportarCSV);
             
-            // Formulários
             document.getElementById('beneficioForm')?.addEventListener('submit', handleFormSubmit);
             document.getElementById('editForm')?.addEventListener('submit', handleEditFormSubmit);
 
-            // Gráficos e PDF
             const salvarPdfPeriodoBtn = document.getElementById('salvar-pdf-periodo');
             const salvarPdfEquipamentoBtn = document.getElementById('salvar-pdf-equipamento');
             document.getElementById('gerar-grafico-periodo')?.addEventListener('click', gerarGraficoBeneficiosPorPeriodo);

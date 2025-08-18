@@ -1,4 +1,3 @@
-/* CÓDIGO COMPLETO COMEÇA AQUI */
 :root {
     --primary-color: #2e8b57;
     --secondary-color: #f0f0f0;
@@ -124,4 +123,3 @@ tbody tr:hover { background-color: #f1f1f1; }
 .spinner { border: 8px solid #f3f3f3; border-top: 8px solid var(--primary-color); border-radius: 50%; width: 60px; height: 60px; animation: spin 1.5s linear infinite; margin-bottom: 20px; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 #loading-overlay p { font-size: 1.2em; font-weight: 600; color: var(--primary-color); }
-/* FIM DO CÓDIGO COMPLETO */
