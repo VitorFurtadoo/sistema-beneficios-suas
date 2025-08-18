@@ -19,32 +19,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const usersCollection = db.collection('users');
 
     let currentUser = null;
-    const form = document.getElementById('beneficioForm');
-    const editForm = document.getElementById('editForm');
-    const adminForm = document.getElementById('adminForm');
-    const equipamentoSelect = document.getElementById('equipamento');
-    const responsavelGroup = document.getElementById('responsavelGroup');
-    const responsavelInput = document.getElementById('responsavel');
-    const tableBody = document.querySelector('#beneficiosTable tbody');
-    const menuButtons = document.querySelectorAll('.menu-btn');
-    const backButtons = document.querySelectorAll('.back-btn');
-    const filterBtn = document.getElementById('btn-filtrar');
-    const clearFilterBtn = document.getElementById('btn-limpar');
-    const separateBtn = document.getElementById('btn-separar');
-    const exportBtn = document.getElementById('btn-exportar-csv');
-    const logoutBtn = document.getElementById('logout-btn');
 
-    const graficoPeriodoCanvas = document.getElementById('grafico-periodo');
-    const graficoEquipamentoCanvas = document.getElementById('grafico-equipamento');
-    const periodoGraficoSelect = document.getElementById('periodo-grafico');
-    const tipoGraficoPeriodoSelect = document.getElementById('tipo-grafico-periodo');
-    const gerarGraficoPeriodoBtn = document.getElementById('gerar-grafico-periodo');
-    const tipoGraficoEquipamentoSelect = document.getElementById('tipo-grafico-equipamento');
-    const gerarGraficoEquipamentoBtn = document.getElementById('gerar-grafico-equipamento');
+    // Elementos do DOM (inicializados com 'null' para evitar erros em páginas diferentes)
+    let form = null;
+    let editForm = null;
+    let adminForm = null;
+    let equipamentoSelect = null;
+    let responsavelGroup = null;
+    let responsavelInput = null;
+    let tableBody = null;
+    let menuButtons = null;
+    let backButtons = null;
+    let filterBtn = null;
+    let clearFilterBtn = null;
+    let separateBtn = null;
+    let exportBtn = null;
+    let logoutBtn = null;
+
+    // Gráficos
+    let graficoPeriodoCanvas = null;
+    let graficoEquipamentoCanvas = null;
+    let periodoGraficoSelect = null;
+    let tipoGraficoPeriodoSelect = null;
+    let gerarGraficoPeriodoBtn = null;
+    let tipoGraficoEquipamentoSelect = null;
+    let gerarGraficoEquipamentoBtn = null;
     let graficoPeriodoChart = null;
     let graficoEquipamentoChart = null;
-    const graficoSection = document.getElementById('graficosSection');
-
+    let graficoSection = null;
+    
+    // Funções de inicialização
     async function setupAdminUser() {
         const adminSnapshot = await usersCollection.where('role', '==', 'admin').limit(1).get();
         if (adminSnapshot.empty) {
@@ -62,23 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveCurrentUser(user) {
         localStorage.setItem('currentUser', JSON.stringify(user));
-    }
-    
-    async function checkLoginStatus() {
-        currentUser = JSON.parse(localStorage.getItem('currentUser'));
-        if (!currentUser) {
-            window.location.href = 'login.html';
-        } else {
-            const welcomeMessageElement = document.getElementById('welcome-message');
-            if (welcomeMessageElement) {
-                welcomeMessageElement.textContent = `Bem-vindo(a), ${currentUser.username}!`;
-            }
-            const adminMenuButton = document.getElementById('adminMenuButton');
-            if (adminMenuButton && currentUser.role === 'admin') {
-                adminMenuButton.style.display = 'block';
-            }
-            showSection('mainMenu');
-        }
     }
 
     async function handleLogin(e) {
@@ -107,32 +94,77 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Lógica para cada página
+    function initMainPage() {
+        form = document.getElementById('beneficioForm');
+        editForm = document.getElementById('editForm');
+        adminForm = document.getElementById('adminForm');
+        equipamentoSelect = document.getElementById('equipamento');
+        responsavelGroup = document.getElementById('responsavelGroup');
+        responsavelInput = document.getElementById('responsavel');
+        tableBody = document.querySelector('#beneficiosTable tbody');
+        menuButtons = document.querySelectorAll('.menu-btn');
+        backButtons = document.querySelectorAll('.back-btn');
+        filterBtn = document.getElementById('btn-filtrar');
+        clearFilterBtn = document.getElementById('btn-limpar');
+        separateBtn = document.getElementById('btn-separar');
+        exportBtn = document.getElementById('btn-exportar-csv');
+        logoutBtn = document.getElementById('logout-btn');
+        graficoPeriodoCanvas = document.getElementById('grafico-periodo');
+        graficoEquipamentoCanvas = document.getElementById('grafico-equipamento');
+        periodoGraficoSelect = document.getElementById('periodo-grafico');
+        tipoGraficoPeriodoSelect = document.getElementById('tipo-grafico-periodo');
+        gerarGraficoPeriodoBtn = document.getElementById('gerar-grafico-periodo');
+        tipoGraficoEquipamentoSelect = document.getElementById('tipo-grafico-equipamento');
+        gerarGraficoEquipamentoBtn = document.getElementById('gerar-grafico-equipamento');
+        graficoSection = document.getElementById('graficosSection');
+
+        setupMainPageEventListeners();
+        checkLoginStatus();
+    }
+
+    function initLoginPage() {
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', handleLogin);
+        }
+        const signupBtn = document.getElementById('signup-btn');
+        if (signupBtn) {
+            signupBtn.addEventListener('click', showContactInfo);
+        }
+        setupAdminUser(); // Garante que o admin seja criado na primeira visita
+    }
+
+    function setupMainPageEventListeners() {
+        menuButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                showSection(button.dataset.section);
+            });
+        });
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                showSection(button.dataset.section);
+            });
+        });
+        if (form) { form.addEventListener('submit', handleFormSubmit); }
+        if (editForm) {
+            editForm.addEventListener('submit', handleEditFormSubmit);
+            document.querySelector('.delete-btn-edit').addEventListener('click', deleteBeneficio);
+        }
+        if (adminForm) { adminForm.addEventListener('submit', handleAdminFormSubmit); }
+        if (equipamentoSelect) { equipamentoSelect.addEventListener('change', toggleResponsavelField); }
+        if (filterBtn) { filterBtn.addEventListener('click', applyFilters); }
+        if (clearFilterBtn) { clearFilterBtn.addEventListener('click', clearFilters); }
+        if (separateBtn) { separateBtn.addEventListener('click', toggleDateSeparation); }
+        if (exportBtn) { exportBtn.addEventListener('click', exportarCSV); }
+        if (logoutBtn) { logoutBtn.addEventListener('click', handleLogout); }
+        if (gerarGraficoPeriodoBtn) { gerarGraficoPeriodoBtn.addEventListener('click', gerarGraficoBeneficiosPorPeriodo); }
+        if (gerarGraficoEquipamentoBtn) { gerarGraficoEquipamentoBtn.addEventListener('click', gerarGraficoBeneficiosPorEquipamento); }
+    }
+
     function handleLogout() {
         localStorage.removeItem('currentUser');
         window.location.href = 'login.html';
-    }
-
-    async function handleAdminFormSubmit(e) {
-        e.preventDefault();
-        const newUsername = document.getElementById('new-username').value;
-        const newPassword = document.getElementById('new-password').value;
-        const newRole = document.getElementById('new-role').value;
-        const existingUserSnapshot = await usersCollection.where('username', '==', newUsername).get();
-        if (!existingUserSnapshot.empty) {
-            alert('Nome de usuário já existe!');
-            return;
-        }
-        const newUser = {
-            username: newUsername,
-            password: newPassword,
-            role: newRole,
-            active: true,
-            lastLogin: ''
-        };
-        await usersCollection.add(newUser);
-        renderUsersTable();
-        adminForm.reset();
-        alert('Novo usuário cadastrado com sucesso!');
     }
 
     async function renderUsersTable() {
@@ -192,7 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showSection(sectionId) {
-        console.log(`Tentando exibir a seção: ${sectionId}`);
         document.querySelectorAll('.section, .main-menu-section').forEach(section => {
             section.classList.remove('active');
         });
@@ -212,41 +243,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function setupEventListeners() {
-        console.log("Configurando event listeners...");
-        menuButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                showSection(button.dataset.section);
-            });
-        });
-        backButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                showSection(button.dataset.section);
-            });
-        });
-        if (form) { form.addEventListener('submit', handleFormSubmit); }
-        if (editForm) {
-            editForm.addEventListener('submit', handleEditFormSubmit);
-            document.querySelector('.delete-btn-edit').addEventListener('click', deleteBeneficio);
-        }
-        if (adminForm) { adminForm.addEventListener('submit', handleAdminFormSubmit); }
-        if (equipamentoSelect) { equipamentoSelect.addEventListener('change', toggleResponsavelField); }
-        if (filterBtn) { filterBtn.addEventListener('click', applyFilters); }
-        if (clearFilterBtn) { clearFilterBtn.addEventListener('click', clearFilters); }
-        if (separateBtn) { separateBtn.addEventListener('click', toggleDateSeparation); }
-        if (exportBtn) { exportBtn.addEventListener('click', exportarCSV); }
-        if (logoutBtn) { logoutBtn.addEventListener('click', handleLogout); }
-        if (gerarGraficoPeriodoBtn) { gerarGraficoPeriodoBtn.addEventListener('click', gerarGraficoBeneficiosPorPeriodo); }
-        if (gerarGraficoEquipamentoBtn) { gerarGraficoEquipamentoBtn.addEventListener('click', gerarGraficoBeneficiosPorEquipamento); }
-
-        const loginForm = document.getElementById('loginForm');
-        if (loginForm) {
-            loginForm.addEventListener('submit', handleLogin);
-            document.getElementById('signup-btn').addEventListener('click', showContactInfo);
-        }
-        console.log("Event listeners configurados.");
-    }
-
     function validarCPF(cpf) {
         cpf = cpf.replace(/\D/g, '');
         if (cpf.length !== 11 || /^([0-9])\1+$/.test(cpf)) return false;
@@ -263,8 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function toggleResponsavelField() {
-        const responsavelInput = document.getElementById('responsavel');
-        const responsavelGroup = document.getElementById('responsavelGroup');
         if (equipamentoSelect.value !== '') {
             responsavelGroup.style.display = 'flex';
             responsavelInput.setAttribute('required', 'required');
@@ -503,11 +497,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(link);
     }
 
-    // Inicialização da aplicação: Apenas se for na página de login
-    if (window.location.pathname.endsWith('login.html')) {
-        setupAdminUser();
+    const currentPath = window.location.pathname;
+    if (currentPath.endsWith('login.html') || currentPath === '/') {
+        initLoginPage();
     } else {
-        checkLoginStatus();
+        initMainPage();
     }
-    setupEventListeners();
 });
