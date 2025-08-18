@@ -46,14 +46,23 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'login.html';
     };
 
-    // NAVEGAÇÃO
+    // NAVEGAÇÃO CORRIGIDA
     const showSection = (sectionId) => {
+        console.log(`Tentando mostrar a seção: ${sectionId}`);
         document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
-        const target = document.getElementById(sectionId);
-        if (target) {
-            target.classList.add('active');
-            if (sectionId === 'consultaSection') fetchBeneficios();
-            if (sectionId === 'adminSection') renderUsersTable();
+        document.getElementById('mainMenu').classList.remove('active'); // Garante que o menu principal comece escondido
+        
+        if (sectionId === 'mainMenu') {
+            document.getElementById('mainMenu').classList.add('active'); // Mostra o menu principal
+        } else {
+            const target = document.getElementById(sectionId);
+            if (target) {
+                target.classList.add('active');
+                if (sectionId === 'consultaSection') fetchBeneficios();
+                if (sectionId === 'adminSection') renderUsersTable();
+            } else {
+                console.error(`Erro: Elemento com ID '${sectionId}' não encontrado.`);
+            }
         }
     };
 
@@ -211,10 +220,16 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Verificando status de login...");
     if(checkLoginStatus()){
         console.log("Usuário logado. Anexando event listeners aos botões.");
+        // Adicionando um ID ao menu principal no HTML para a navegação funcionar
+        document.querySelector('.main-menu').id = 'mainMenu';
+
         document.querySelectorAll('.menu-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
         document.querySelectorAll('.back-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
         document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
         document.getElementById('beneficioForm')?.addEventListener('submit', handleFormSubmit);
         document.getElementById('editForm')?.addEventListener('submit', handleEditFormSubmit);
+
+        // Ao carregar a página, mostra a seção principal por padrão.
+        showSection('mainMenu');
     }
 });
