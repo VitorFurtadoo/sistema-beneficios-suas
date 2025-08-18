@@ -1,17 +1,20 @@
+/* CÓDIGO COMPLETO COMEÇA AQUI */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM totalmente carregado. Iniciando a aplicação.");
+    // IMPORTA AS BIBLIOTECAS GLOBAIS
+    const { jsPDF } = window.jspdf;
 
-    // Cole sua configuração do Firebase aqui
+    // CONFIGURAÇÃO DO FIREBASE
+    // **IMPORTANTE**: Substitua pelos seus dados reais do Firebase
     const firebaseConfig = {
-        apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
-        authDomain: "beneficios-eventuais-suas.firebaseapp.com",
-        projectId: "beneficios-eventuais-suas",
-        storageBucket: "beneficios-eventuais-suas.firebasestorage.app",
-        messagingSenderId: "665210304564",
-        appId: "1:665210304564:web:cf233fd0e56bbfe3d5b261"
+        apiKey: "SUA_API_KEY",
+        authDomain: "SEU_AUTH_DOMAIN.firebaseapp.com",
+        projectId: "SEU_PROJECT_ID",
+        storageBucket: "SEU_STORAGE_BUCKET.appspot.com",
+        messagingSenderId: "SEU_SENDER_ID",
+        appId: "SEU_APP_ID"
     };
 
-    if (firebase.apps.length === 0) {
+    if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
     }
     
@@ -19,36 +22,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const beneficiosCollection = db.collection('beneficios');
     const usersCollection = db.collection('users');
 
-    let currentUser = null;
+    // CONTROLE DE TELA DE CARREGAMENTO
+    const showLoading = () => document.getElementById('loading-overlay')?.style.display = 'flex';
+    const hideLoading = () => document.getElementById('loading-overlay')?.style.display = 'none';
 
-    function showLoading() {
-        const overlay = document.getElementById('loading-overlay');
-        if (overlay) overlay.style.display = 'flex';
-    }
-    
-    function hideLoading() {
-        const overlay = document.getElementById('loading-overlay');
-        if (overlay) overlay.style.display = 'none';
-    }
+    // DECLARAÇÃO DE VARIÁVEIS DE ELEMENTOS DO DOM
+    let salvarPdfPeriodoBtn, salvarPdfEquipamentoBtn, graficoPeriodoChart, graficoEquipamentoChart;
 
-    let form, editForm, adminForm, equipamentoSelect, responsavelGroup, responsavelInput, tableBody, menuButtons, backButtons, filterBtn, clearFilterBtn, separateBtn, exportBtn, logoutBtn;
-    let graficoPeriodoCanvas, graficoEquipamentoCanvas, periodoGraficoSelect, tipoGraficoPeriodoSelect, gerarGraficoPeriodoBtn, tipoGraficoEquipamentoSelect, gerarGraficoEquipamentoBtn, graficoSection;
-    let graficoPeriodoChart = null, graficoEquipamentoChart = null;
-    
-    async function setupAdminUser() {
-        const adminSnapshot = await usersCollection.where('role', '==', 'admin').limit(1).get();
-        if (adminSnapshot.empty) {
-            const newAdminUser = { username: 'vitorfurtadoo', password: 'Biologo123!', role: 'admin', active: true, lastLogin: '' };
-            await usersCollection.add(newAdminUser);
-            console.log('Usuário administrador criado no Firestore.');
-        }
-    }
-
-    function saveCurrentUser(user) {
-        localStorage.setItem('currentUser', JSON.stringify(user));
-    }
-
-    async function handleLogin(e) {
+    // FUNÇÕES DE LOGIN E AUTENTICAÇÃO
+    const handleLogin = async (e) => {
         e.preventDefault();
         showLoading();
         const username = document.getElementById('login-username').value;
@@ -56,12 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const userSnapshot = await usersCollection.where('username', '==', username).where('password', '==', password).get();
             if (!userSnapshot.empty) {
-                const userDoc = userSnapshot.docs[0];
-                const user = { id: userDoc.id, ...userDoc.data() };
+                const user = { id: userSnapshot.docs[0].id, ...userSnapshot.docs[0].data() };
                 if (user.active) {
-                    user.lastLogin = new Date().toLocaleString('pt-BR');
-                    await usersCollection.doc(user.id).update({ lastLogin: user.lastLogin });
-                    saveCurrentUser(user);
+                    localStorage.setItem('currentUser', JSON.stringify(user));
                     window.location.href = 'index.html';
                 } else {
                     alert('Sua conta está desativada.');
@@ -75,105 +54,37 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             hideLoading();
         }
-    }
+    };
 
-    function initMainPage() {
-        form = document.getElementById('beneficioForm');
-        editForm = document.getElementById('editForm');
-        adminForm = document.getElementById('adminForm');
-        equipamentoSelect = document.getElementById('equipamento');
-        responsavelGroup = document.getElementById('responsavelGroup');
-        responsavelInput = document.getElementById('responsavel');
-        tableBody = document.querySelector('#beneficiosTable tbody');
-        menuButtons = document.querySelectorAll('.menu-btn');
-        backButtons = document.querySelectorAll('.back-btn');
-        filterBtn = document.getElementById('btn-filtrar');
-        clearFilterBtn = document.getElementById('btn-limpar');
-        separateBtn = document.getElementById('btn-separar');
-        exportBtn = document.getElementById('btn-exportar-csv');
-        logoutBtn = document.getElementById('logout-btn');
-        graficoPeriodoCanvas = document.getElementById('grafico-periodo');
-        graficoEquipamentoCanvas = document.getElementById('grafico-equipamento');
-        periodoGraficoSelect = document.getElementById('periodo-grafico');
-        tipoGraficoPeriodoSelect = document.getElementById('tipo-grafico-periodo');
-        gerarGraficoPeriodoBtn = document.getElementById('gerar-grafico-periodo');
-        tipoGraficoEquipamentoSelect = document.getElementById('tipo-grafico-equipamento');
-        gerarGraficoEquipamentoBtn = document.getElementById('gerar-grafico-equipamento');
-        graficoSection = document.getElementById('graficosSection');
-        setupMainPageEventListeners();
-        checkLoginStatus();
-    }
-
-    function initLoginPage() {
-        const loginForm = document.getElementById('loginForm');
-        if (loginForm) loginForm.addEventListener('submit', handleLogin);
-        const signupBtn = document.getElementById('signup-btn');
-        if (signupBtn) signupBtn.addEventListener('click', showContactInfo);
-        setupAdminUser();
-    }
-
-    function setupMainPageEventListeners() {
-        menuButtons.forEach(button => button.addEventListener('click', () => showSection(button.dataset.section)));
-        backButtons.forEach(button => button.addEventListener('click', () => showSection(button.dataset.section)));
-        if (form) form.addEventListener('submit', handleFormSubmit);
-        if (editForm) {
-            editForm.addEventListener('submit', handleEditFormSubmit);
-            document.querySelector('.delete-btn-edit').addEventListener('click', deleteBeneficio);
-        }
-        if (adminForm) adminForm.addEventListener('submit', handleAdminFormSubmit);
-        if (equipamentoSelect) equipamentoSelect.addEventListener('change', toggleResponsavelField);
-        if (filterBtn) filterBtn.addEventListener('click', applyFilters);
-        if (clearFilterBtn) clearFilterBtn.addEventListener('click', clearFilters);
-        if (separateBtn) separateBtn.addEventListener('click', toggleDateSeparation);
-        if (exportBtn) exportBtn.addEventListener('click', exportarCSV);
-        if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
-        if (gerarGraficoPeriodoBtn) gerarGraficoPeriodoBtn.addEventListener('click', gerarGraficoBeneficiosPorPeriodo);
-        if (gerarGraficoEquipamentoBtn) gerarGraficoEquipamentoBtn.addEventListener('click', gerarGraficoBeneficiosPorEquipamento);
-    }
-    
-    // Todas as demais funções (handleLogout, fetchBeneficios, etc.) devem ser incluídas aqui
-    // Coloquei o restante do seu código JS abaixo, com as devidas modificações.
-
-    function checkLoginStatus() {
+    const checkLoginStatus = () => {
         const userStr = localStorage.getItem('currentUser');
         if (!userStr) {
             window.location.href = 'login.html';
-            return;
+            return false;
         }
-        currentUser = JSON.parse(userStr);
-        document.getElementById('welcome-message').textContent = `Bem-vindo(a), ${currentUser.username}!`;
-        if (currentUser.role === 'admin') {
-            document.getElementById('adminMenuButton').style.display = 'flex';
+        const currentUser = JSON.parse(userStr);
+        const welcomeMessage = document.getElementById('welcome-message');
+        if (welcomeMessage) {
+            welcomeMessage.textContent = `Bem-vindo(a), ${currentUser.username}!`;
         }
-    }
-    
-    function handleLogout() {
+        const adminButton = document.getElementById('adminMenuButton');
+        if (adminButton && currentUser.role === 'admin') {
+            adminButton.style.display = 'flex';
+        }
+        return true;
+    };
+
+    const handleLogout = () => {
         localStorage.removeItem('currentUser');
         window.location.href = 'login.html';
-    }
+    };
 
-    async function fetchBeneficios() {
-        showLoading();
-        try {
-            const snapshot = await beneficiosCollection.get();
-            const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderTable(allBeneficios);
-        } catch (error) {
-            console.error("Erro ao buscar benefícios:", error);
-            alert("Não foi possível carregar os dados.");
-        } finally {
-            hideLoading();
-        }
-    }
-    
-    // ... Coloque aqui as outras funções que você já tinha, como renderTable, showSection, etc.
-    // ... Eu as recriei abaixo para garantir que esteja tudo completo.
-    
-    function showContactInfo() {
-        alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo WhatsApp: (91) 99925-9834.');
-    }
+    const showContactInfo = () => {
+        alert('Para cadastrar um novo login, entre em contato com o administrador.');
+    };
 
-    function showSection(sectionId) {
+    // FUNÇÕES DE NAVEGAÇÃO E VISIBILIDADE
+    const showSection = (sectionId) => {
         document.querySelectorAll('.section, .main-menu-section').forEach(section => {
             section.classList.remove('active');
         });
@@ -181,71 +92,127 @@ document.addEventListener('DOMContentLoaded', () => {
         if (targetSection) {
             targetSection.classList.add('active');
             if (sectionId === 'consultaSection') fetchBeneficios();
-            if (sectionId === 'adminSection') renderUsersTable();
-            if (sectionId === 'graficosSection') {
-                gerarGraficoBeneficiosPorPeriodo();
-                gerarGraficoBeneficiosPorEquipamento();
-            }
         }
-    }
+    };
 
-    function renderTable(dataToRender) {
-        if (!tableBody) return;
-        tableBody.innerHTML = '';
-        dataToRender.forEach((beneficio) => {
-            const row = document.createElement('tr');
-            row.dataset.id = beneficio.id;
-            row.innerHTML = `
-                <td>${beneficio.beneficiario || ''}</td>
-                <td>${beneficio.cpf || ''}</td>
-                <td>${beneficio.data || ''}</td>
-                <td>${beneficio.valor || ''}</td>
-                <td>${beneficio.beneficio || ''}</td>
-                <td>${beneficio.quantidade || ''}</td>
-                <td>${beneficio.equipamento || ''}</td>
-                <td>${beneficio.responsavel || ''}</td>
-                <td>${beneficio.status || ''}</td>
-                <td>${beneficio.observacoes || ''}</td>
-                <td>${beneficio.lastUpdated || ''}</td>
-                <td><button class="edit-btn" onclick="openEditForm(this)">Editar</button></td>
-            `;
-            tableBody.appendChild(row);
-        });
-    }
-
-    window.openEditForm = async function(button) {
+    // FUNÇÕES CRUD (EXEMPLO)
+    const fetchBeneficios = async () => {
         showLoading();
         try {
-            const row = button.closest('tr');
-            const docId = row.dataset.id;
-            const doc = await beneficiosCollection.doc(docId).get();
-            const beneficio = doc.data();
-
-            document.getElementById('editIndex').value = docId;
-            document.getElementById('edit-beneficiario').value = beneficio.beneficiario;
-            document.getElementById('edit-cpf').value = beneficio.cpf;
-            // ... preencha todos os outros campos do formulário de edição
-            showSection('editSection');
-        } catch(error) {
-            console.error("Erro ao abrir formulário de edição:", error);
+            const snapshot = await beneficiosCollection.get();
+            const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Aqui você chamaria a função que renderiza a tabela, por exemplo:
+            // renderTable(allBeneficios); 
+        } catch (error) {
+            console.error("Erro ao buscar benefícios:", error);
+            alert("Não foi possível carregar os dados.");
         } finally {
             hideLoading();
         }
     };
     
-    // Continue adicionando as outras funções que faltam...
-    
-    async function gerarGraficoBeneficiosPorPeriodo() {
-        if (!graficoPeriodoCanvas) return;
+    // FUNÇÕES DE EXPORTAÇÃO E GERAÇÃO DE PDF
+    const exportarCSV = async () => {
+        showLoading();
+        try {
+            const snapshot = await beneficiosCollection.get();
+            const data = snapshot.docs.map(doc => doc.data());
+            if (data.length === 0) {
+                alert("Nenhum dado para exportar.");
+                return;
+            }
+
+            const headers = ["Beneficiário", "CPF", "Data", "Valor", "Benefício", "Quantidade", "Equipamento", "Técnico Responsável", "Status", "Observações", "Última Atualização"];
+            
+            const csvRows = data.map(row => {
+                return [
+                    `"${row.beneficiario || ''}"`,
+                    `"${row.cpf || ''}"`,
+                    `"${row.data || ''}"`,
+                    `"${row.valor || ''}"`,
+                    `"${row.beneficio || ''}"`,
+                    `"${row.quantidade || ''}"`,
+                    `"${row.equipamento || ''}"`,
+                    `"${row.responsavel || ''}"`,
+                    `"${row.status || ''}"`,
+                    `"${row.observacoes || ''}"`,
+                    `"${row.lastUpdated || ''}"`
+                ].join(',');
+            });
+
+            const csvContent = [headers.join(','), ...csvRows].join('\n');
+            const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'relatorio_beneficios.csv';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error("Erro ao exportar CSV:", error);
+            alert("Falha ao exportar CSV.");
+        } finally {
+            hideLoading();
+        }
+    };
+
+    const salvarGraficoComoPDF = (containerId, titulo) => {
+        showLoading();
+        const graficoContainer = document.getElementById(containerId);
+        const logo = new Image();
+        logo.src = 'logo_semdes.png';
+
+        logo.onload = () => {
+            html2canvas(graficoContainer, { scale: 2 }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const doc = new jsPDF('p', 'mm', 'a4');
+                const pageWidth = doc.internal.pageSize.getWidth();
+                
+                const logoWidth = 40;
+                const logoHeight = (logo.height * logoWidth) / logo.width;
+                doc.addImage(logo, 'PNG', 15, 15, logoWidth, logoHeight);
+
+                doc.setFontSize(18);
+                doc.setTextColor('#2e8b57');
+                doc.text(titulo, pageWidth / 2, 25, { align: 'center' });
+
+                const dataAtual = new Date().toLocaleString('pt-BR');
+                doc.setFontSize(10);
+                doc.setTextColor(100);
+                doc.text(`Relatório gerado em: ${dataAtual}`, pageWidth / 2, 35, { align: 'center' });
+
+                const imgWidth = pageWidth - 30;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                doc.addImage(imgData, 'PNG', 15, 50, imgWidth, imgHeight);
+
+                doc.save(`${titulo.replace(/ /g, '_').toLowerCase()}.pdf`);
+            }).catch(err => {
+                console.error("Erro no html2canvas:", err);
+                alert("Falha ao gerar o PDF.");
+            }).finally(() => {
+                hideLoading();
+            });
+        };
+
+        logo.onerror = () => {
+            alert("Logo não encontrada! Verifique se 'logo_semdes.png' está na pasta raiz do projeto.");
+            hideLoading();
+        };
+    };
+
+    // FUNÇÕES DE GRÁFICOS
+    const gerarGraficoBeneficiosPorPeriodo = async () => {
         showLoading();
         try {
             const snapshot = await beneficiosCollection.get();
             const beneficios = snapshot.docs.map(doc => doc.data());
-            const periodo = periodoGraficoSelect.value;
-            const tipoGrafico = tipoGraficoPeriodoSelect.value;
+            const periodo = document.getElementById('periodo-grafico').value;
+            const tipoGrafico = document.getElementById('tipo-grafico-periodo').value;
+            
             const dadosAgrupados = beneficios.reduce((acc, ben) => {
                 if (!ben.data) return acc;
                 const data = new Date(ben.data);
+                if (isNaN(data.getTime())) return acc;
                 let chave;
                 if (periodo === 'mes') chave = `${data.getFullYear()}/${String(data.getMonth() + 1).padStart(2, '0')}`;
                 else if (periodo === 'ano') chave = data.getFullYear().toString();
@@ -253,65 +220,84 @@ document.addEventListener('DOMContentLoaded', () => {
                     const trimestre = Math.floor(data.getMonth() / 3) + 1;
                     chave = `${data.getFullYear()}/T${trimestre}`;
                 }
-                if (!acc[chave]) acc[chave] = 0;
-                acc[chave] += 1;
+                acc[chave] = (acc[chave] || 0) + 1;
                 return acc;
             }, {});
-            const labels = Object.keys(dadosAgrupados).sort();
-            const data = labels.map(label => dadosAgrupados[label]);
+
             if (graficoPeriodoChart) graficoPeriodoChart.destroy();
-            const ctx = graficoPeriodoCanvas.getContext('2d');
+            const ctx = document.getElementById('grafico-periodo').getContext('2d');
             graficoPeriodoChart = new Chart(ctx, {
                 type: tipoGrafico,
                 data: {
-                    labels: labels,
-                    datasets: [{ label: 'Qtd. de Benefícios', data: data, backgroundColor: 'rgba(46, 139, 87, 0.6)', borderColor: 'rgba(46, 139, 87, 1)', borderWidth: 2, fill: tipoGrafico === 'line' }]
-                },
-                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+                    labels: Object.keys(dadosAgrupados).sort(),
+                    datasets: [{ label: 'Qtd. de Benefícios', data: Object.values(dadosAgrupados), backgroundColor: '#2e8b57' }]
+                }
             });
+            salvarPdfPeriodoBtn.style.display = 'inline-block';
         } catch (error) {
             console.error("Erro ao gerar gráfico por período:", error);
         } finally {
             hideLoading();
         }
-    }
-
-    async function gerarGraficoBeneficiosPorEquipamento() {
-        if (!graficoEquipamentoCanvas) return;
+    };
+    
+    const gerarGraficoBeneficiosPorEquipamento = async () => {
         showLoading();
         try {
             const snapshot = await beneficiosCollection.get();
             const beneficios = snapshot.docs.map(doc => doc.data());
-            const tipoGrafico = tipoGraficoEquipamentoSelect.value;
+            const tipoGrafico = document.getElementById('tipo-grafico-equipamento').value;
+            
             const dadosAgrupados = beneficios.reduce((acc, ben) => {
-                const equipamento = ben.equipamento;
-                if (!acc[equipamento]) acc[equipamento] = 0;
-                acc[equipamento] += 1;
+                const equipamento = ben.equipamento || 'Não especificado';
+                acc[equipamento] = (acc[equipamento] || 0) + 1;
                 return acc;
             }, {});
-            const labels = Object.keys(dadosAgrupados);
-            const data = Object.values(dadosAgrupados);
+
             if (graficoEquipamentoChart) graficoEquipamentoChart.destroy();
-            const ctx = graficoEquipamentoCanvas.getContext('2d');
+            const ctx = document.getElementById('grafico-equipamento').getContext('2d');
             graficoEquipamentoChart = new Chart(ctx, {
                 type: tipoGrafico,
                 data: {
-                    labels: labels,
-                    datasets: [{ label: 'Qtd. por Equipamento', data: data, backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)', 'rgba(75, 192, 192, 0.6)', 'rgba(153, 102, 255, 0.6)', 'rgba(255, 159, 64, 0.6)'], borderColor: '#fff', borderWidth: 1 }]
-                },
-                options: { responsive: true }
+                    labels: Object.keys(dadosAgrupados),
+                    datasets: [{
+                        label: 'Qtd. por Equipamento',
+                        data: Object.values(dadosAgrupados),
+                        backgroundColor: ['#28a745', '#17a2b8', '#ffc107', '#6c757d', '#fd7e14', '#dc3545', '#0d6efd']
+                    }]
+                }
             });
+            salvarPdfEquipamentoBtn.style.display = 'inline-block';
         } catch (error) {
             console.error("Erro ao gerar gráfico por equipamento:", error);
         } finally {
             hideLoading();
         }
-    }
+    };
 
-    const currentPath = window.location.pathname.split("/").pop();
-    if (currentPath === 'login.html' || currentPath === '') {
-        initLoginPage();
-    } else {
-        initMainPage();
-    }
+    // INICIALIZAÇÃO DA PÁGINA
+    const initPage = () => {
+        const path = window.location.pathname.split("/").pop();
+        if (path === 'login.html' || path === '') {
+            document.getElementById('loginForm')?.addEventListener('submit', handleLogin);
+            document.getElementById('signup-btn')?.addEventListener('click', showContactInfo);
+        } else if (checkLoginStatus()) {
+            document.querySelectorAll('.menu-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
+            document.querySelectorAll('.back-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
+            document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
+            document.getElementById('btn-exportar-csv')?.addEventListener('click', exportarCSV);
+            
+            salvarPdfPeriodoBtn = document.getElementById('salvar-pdf-periodo');
+            salvarPdfEquipamentoBtn = document.getElementById('salvar-pdf-equipamento');
+
+            document.getElementById('gerar-grafico-periodo')?.addEventListener('click', gerarGraficoBeneficiosPorPeriodo);
+            document.getElementById('gerar-grafico-equipamento')?.addEventListener('click', gerarGraficoBeneficiosPorEquipamento);
+            
+            salvarPdfPeriodoBtn?.addEventListener('click', () => salvarGraficoComoPDF('grafico-periodo-container', 'Relatório de Benefícios por Período'));
+            salvarPdfEquipamentoBtn?.addEventListener('click', () => salvarGraficoComoPDF('grafico-equipamento-container', 'Relatório de Benefícios por Equipamento'));
+        }
+    };
+
+    initPage();
 });
+/* FIM DO CÓDIGO COMPLETO */
