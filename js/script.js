@@ -1,5 +1,6 @@
 /* js/script.js - Lógica da Aplicação Principal */
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM carregado. Iniciando script.js...");
     const { jsPDF } = window.jspdf;
 
     // CONFIGURAÇÃO DO FIREBASE
@@ -26,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const checkLoginStatus = () => {
         const userStr = localStorage.getItem('currentUser');
         if (!userStr) {
+            console.log("Usuário não logado. Redirecionando para login.html.");
             window.location.href = 'login.html';
             return false;
         }
@@ -35,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const adminButton = document.getElementById('adminMenuButton');
         if (adminButton && currentUser.role === 'admin') adminButton.style.display = 'flex';
+        console.log("Usuário logado. Retornando true.");
         return true;
     };
 
@@ -153,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // EVENT DELEGATION
-    document.getElementById('beneficiosTable').addEventListener('click', async (e) => {
+    document.getElementById('beneficiosTable')?.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
         if (e.target.classList.contains('edit-btn')) {
             showLoading();
@@ -174,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('usersTable').addEventListener('click', async (e) => {
+    document.getElementById('usersTable')?.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
         if (e.target.classList.contains('delete-user-btn')) {
             if (!confirm("Deseja realmente excluir?")) return;
@@ -205,7 +208,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('salvar-pdf-equipamento')?.addEventListener('click', () => salvarGraficoComoPDF('grafico-equipamento-container', 'Benefícios por Equipamento'));
     
     // INICIALIZAÇÃO
+    console.log("Verificando status de login...");
     if(checkLoginStatus()){
+        console.log("Usuário logado. Anexando event listeners aos botões.");
         document.querySelectorAll('.menu-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
         document.querySelectorAll('.back-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
         document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
