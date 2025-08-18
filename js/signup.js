@@ -1,4 +1,4 @@
-/* js/signup.js - Lógica de Cadastro */
+/* js/signup.js - Lógica de Cadastro (Sem Cloud Function) */
 
 const firebaseConfig = {
     apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
@@ -48,7 +48,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            await auth.createUserWithEmailAndPassword(email, password);
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+
+            // Lógica movida para o lado do cliente: cria o documento no Firestore
+            await db.collection('users').doc(user.uid).set({
+                email: user.email,
+                role: 'user', // A função padrão é 'user'
+                active: true,
+                username: user.email.split('@')[0],
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
             showMessage('Cadastro realizado com sucesso! Você será redirecionado para o login.', false);
             setTimeout(() => {
                 window.location.href = 'login.html';
