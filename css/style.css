@@ -20,7 +20,6 @@ body {
     max-width: 1200px;
     margin: 0 auto;
 }
-/* Estilo para a logo e o título */
 .header-logo {
     display: flex;
     align-items: center;
@@ -28,13 +27,12 @@ body {
     margin-bottom: 20px;
 }
 .header-logo .logo {
-    height: 80px; /* Ajuste o tamanho conforme necessário */
+    height: 80px;
     margin-right: 20px;
 }
 .header-logo h1 {
     margin: 0;
 }
-/* Alinhamento do título na tela de login */
 .login-page .header-logo {
     margin-bottom: 0;
 }
@@ -89,7 +87,6 @@ h1 {
 .menu-btn:active {
     transform: translateY(0);
 }
-/* Cores personalizadas para os botões do menu */
 .btn-cadastrar { background-color: #28a745; }
 .btn-cadastrar:hover { background-color: #218838; }
 .btn-consultar { background-color: #17a2b8; }
@@ -98,10 +95,9 @@ h1 {
 .btn-exportar:hover { background-color: #d39e00; }
 .btn-admin { background-color: #6c757d; }
 .btn-admin:hover { background-color: #5a6268; }
-.btn-graficos { background-color: #fd7e14; } /* Cor para o botão de gráficos */
+.btn-graficos { background-color: #fd7e14; }
 .btn-graficos:hover { background-color: #e36a05; }
 
-/* Estilos para as seções */
 .section {
     display: none;
     animation: fadeIn 0.5s ease-in-out;
@@ -128,7 +124,6 @@ h1 {
 .back-btn:hover {
     text-decoration: underline;
 }
-/* Estilos do formulário e tabela */
 .form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -216,7 +211,6 @@ th, td {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-/* Ajuste das larguras das colunas para simetria */
 th:nth-child(1), td:nth-child(1) { width: 14%; }
 th:nth-child(2), td:nth-child(2) { width: 10%; }
 th:nth-child(3), td:nth-child(3) { width: 8%; }
@@ -315,7 +309,6 @@ tbody tr:hover {
     text-align: center;
     font-size: 1.1em;
 }
-/* Gráficos */
 .graficos-container {
     margin-bottom: 40px;
 }
@@ -339,7 +332,6 @@ tbody tr:hover {
     }
 }
 
-/* --- ESTILOS DA TELA DE CARREGAMENTO ADICIONADOS AQUI --- */
 #loading-overlay {
     position: fixed;
     top: 0;
@@ -347,7 +339,7 @@ tbody tr:hover {
     width: 100%;
     height: 100%;
     background-color: rgba(255, 255, 255, 0.8);
-    display: none; /* Começa escondido */
+    display: none;
     justify-content: center;
     align-items: center;
     flex-direction: column;
@@ -355,8 +347,8 @@ tbody tr:hover {
 }
 
 .spinner {
-    border: 8px solid #f3f3f3; /* Cinza claro */
-    border-top: 8px solid var(--primary-color); /* Verde do sistema */
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid var(--primary-color);
     border-radius: 50%;
     width: 60px;
     height: 60px;
