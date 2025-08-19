@@ -1,3 +1,5 @@
+/* js/login.js - Lógica de Login */
+
 const firebaseConfig = {
     apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
     authDomain: "beneficios-eventuais-suas.firebaseapp.com",

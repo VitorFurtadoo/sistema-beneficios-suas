@@ -51,10 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
             const user = userCredential.user;
 
-            // Lógica movida para o lado do cliente: cria o documento no Firestore
             await db.collection('users').doc(user.uid).set({
                 email: user.email,
-                role: 'user', // A função padrão é 'user'
+                role: 'user',
                 active: true,
                 username: user.email.split('@')[0],
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
