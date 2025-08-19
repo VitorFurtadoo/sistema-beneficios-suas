@@ -1,4 +1,4 @@
-/* js/script.js - Lógica da Aplicação Principal (Exportar CSV desativado) */
+/* js/script.js - Lógica da Aplicação Principal */
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM carregado. Iniciando script.js...");
 
@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const db = firebase.firestore();
     const beneficiosCollection = db.collection('beneficios');
     const usersCollection = db.collection('users');
+    const logsCollection = db.collection('logs');
 
     const showLoading = () => {
         const overlay = document.getElementById('loading-overlay');
@@ -25,6 +26,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const hideLoading = () => {
         const overlay = document.getElementById('loading-overlay');
         if (overlay) overlay.style.display = 'none';
+    };
+
+    const logActivity = (userId, message, action) => {
+        logsCollection.add({
+            userId: userId,
+            message: message,
+            action: action,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(error => console.error("Erro ao registrar log:", error));
     };
 
     const checkLoginStatus = (user) => {
@@ -47,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const adminButton = document.getElementById('adminMenuButton');
         if (adminButton && currentUser.role === 'admin') adminButton.style.display = 'flex';
+        
         console.log("Usuário logado. Retornando true.");
         return true;
     };
@@ -69,7 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (target) {
                 target.classList.add('active');
                 if (sectionId === 'consultaSection') fetchBeneficios();
-                if (sectionId === 'adminSection') renderUsersTable();
+                if (sectionId === 'adminSection') {
+                    renderUsersTable();
+                    renderLogsTable();
+                }
             } else {
                 console.error(`Erro: Elemento com ID '${sectionId}' não encontrado.`);
             }
@@ -121,6 +135,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleFormSubmit = async (e) => {
         e.preventDefault();
         showLoading();
+        
+        const valorInput = e.target.querySelector('input[name="valor"]');
+        const quantidadeInput = e.target.querySelector('input[name="quantidade"]');
+        if (parseFloat(valorInput.value) < 0 || parseInt(quantidadeInput.value) < 0) {
+            alert('Valores não podem ser negativos!');
+            hideLoading();
+            return;
+        }
+
         try {
             const formData = Object.fromEntries(new FormData(e.target).entries());
             formData.lastUpdated = new Date().toLocaleString('pt-BR');
@@ -128,6 +151,8 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Benefício cadastrado!');
             e.target.reset();
             showSection('consultaSection');
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            logActivity(currentUser.id, `Cadastrou um novo benefício para ${formData.beneficiario}`, 'create_beneficio');
         } catch(error) {
             console.error("Erro ao cadastrar:", error);
             alert("Falha ao cadastrar benefício.");
@@ -137,6 +162,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleEditFormSubmit = async (e) => {
         e.preventDefault();
         showLoading();
+
+        const valorInput = e.target.querySelector('input[name="valor"]');
+        const quantidadeInput = e.target.querySelector('input[name="quantidade"]');
+        if (parseFloat(valorInput.value) < 0 || parseInt(quantidadeInput.value) < 0) {
+            alert('Valores não podem ser negativos!');
+            hideLoading();
+            return;
+        }
+
         try {
             const docId = document.getElementById('editIndex').value;
             const updated = Object.fromEntries(new FormData(e.target).entries());
@@ -144,6 +178,8 @@ document.addEventListener('DOMContentLoaded', () => {
             await beneficiosCollection.doc(docId).update(updated);
             alert('Registro atualizado!');
             showSection('consultaSection');
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            logActivity(currentUser.id, `Editou o benefício ${docId} de ${updated.beneficiario}`, 'edit_beneficio');
         } catch(error) {
             console.error("Erro ao atualizar:", error);
             alert("Falha ao atualizar registro.");
@@ -151,34 +187,98 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderUsersTable = async () => {
+        console.log("Chamando renderUsersTable...");
         showLoading();
         try {
             const snapshot = await usersCollection.get();
             const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             const tbody = document.querySelector('#usersTable tbody');
-            if(!tbody) return;
+            
+            if(!tbody) {
+                console.error("Elemento tbody para a tabela de usuários não encontrado!");
+                return;
+            }
+
             tbody.innerHTML = '';
-            users.forEach(u => {
+            
+            if (users.length === 0) {
+                console.log("Nenhum usuário encontrado no Firestore.");
                 const row = tbody.insertRow();
-                const statusDisplay = u.status || 'Não definido';
-                row.innerHTML = `
-                    <td>${u.username}</td>
-                    <td>${u.role}</td>
-                    <td>${statusDisplay}</td>
-                    <td class="table-actions"><button class="delete-user-btn" data-id="${u.id}">Excluir</button></td>
-                `;
-            });
+                const cell = row.insertCell(0);
+                cell.textContent = "Nenhum usuário encontrado.";
+                cell.colSpan = 4;
+            } else {
+                console.log(`Encontrados ${users.length} usuários. Preenchendo tabela...`);
+                users.forEach(u => {
+                    const row = tbody.insertRow();
+                    const statusDisplay = u.status || 'Não definido';
+                    row.innerHTML = `
+                        <td>${u.username}</td>
+                        <td>${u.role}</td>
+                        <td>${statusDisplay}</td>
+                        <td class="table-actions"><button class="delete-user-btn" data-id="${u.id}">Excluir</button></td>
+                    `;
+                });
+            }
         } catch(error) {
             console.error("Erro ao carregar usuários:", error);
+            alert("Não foi possível carregar os usuários.");
         } finally { hideLoading(); }
     };
+    
+    const renderLogsTable = async () => {
+        console.log("Chamando renderLogsTable...");
+        showLoading();
+        try {
+            const snapshot = await logsCollection.orderBy('timestamp', 'desc').get();
+            const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const tbody = document.querySelector('#logsTable tbody');
+
+            if (!tbody) {
+                console.error("Elemento tbody para a tabela de logs não encontrado!");
+                return;
+            }
+
+            tbody.innerHTML = '';
+
+            if (logs.length === 0) {
+                console.log("Nenhum log encontrado no Firestore.");
+                const row = tbody.insertRow();
+                const cell = row.insertCell(0);
+                cell.textContent = "Nenhum log de atividade encontrado.";
+                cell.colSpan = 3;
+            } else {
+                console.log(`Encontrados ${logs.length} logs. Preenchendo tabela...`);
+                logs.forEach(log => {
+                    const row = tbody.insertRow();
+                    const timestamp = log.timestamp ? log.timestamp.toDate().toLocaleString('pt-BR') : '';
+                    row.innerHTML = `
+                        <td>${timestamp}</td>
+                        <td>${log.message}</td>
+                        <td>${log.action}</td>
+                    `;
+                });
+            }
+        } catch (error) {
+            console.error("Erro ao carregar logs:", error);
+            alert("Não foi possível carregar os logs.");
+        } finally {
+            hideLoading();
+        }
+    };
+
 
     const handleDeleteBeneficio = async (id) => {
         if (!confirm("Tem certeza que deseja excluir este benefício?")) return;
         showLoading();
         try {
+            const benefDoc = await beneficiosCollection.doc(id).get();
+            const benefData = benefDoc.data();
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            
             await beneficiosCollection.doc(id).delete();
             alert("Benefício excluído com sucesso!");
+            logActivity(currentUser.id, `Excluiu o benefício ${id} de ${benefData.beneficiario}`, 'delete_beneficio');
             fetchBeneficios();
         } catch (error) {
             console.error("Erro ao excluir benefício:", error);
@@ -223,6 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 await usersCollection.doc(id).delete();
                 alert("Usuário excluído!");
+                logActivity(currentUser.id, `Excluiu o usuário ${id}`, 'delete_user');
                 renderUsersTable();
             } catch(error) {
                 console.error(error);
@@ -231,11 +332,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Função placeholder para o botão desativado
     const handleExportDisabled = () => {
         alert("A funcionalidade de exportação de planilha está em desenvolvimento.");
     };
-    document.getElementById('btn-exportar-csv')?.addEventListener('click', handleExportDisabled);
+    const exportButton = document.getElementById('btn-exportar-csv');
+    if (exportButton) {
+        exportButton.addEventListener('click', handleExportDisabled);
+    }
 
     let chartPeriodo = null;
     let chartEquipamento = null;
@@ -462,6 +565,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const adminButton = document.getElementById('adminMenuButton');
                     if (adminButton && currentUser.role === 'admin') adminButton.style.display = 'flex';
+                    
+                    const logsButton = document.getElementById('logsMenuButton');
+                    if (logsButton && currentUser.role === 'admin') logsButton.style.display = 'flex';
 
                     document.querySelectorAll('.menu-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
                     document.querySelectorAll('.back-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));

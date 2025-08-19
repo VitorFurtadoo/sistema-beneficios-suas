@@ -1,5 +1,3 @@
-/* js/login.js - Lógica de Login */
-
 const firebaseConfig = {
     apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
     authDomain: "beneficios-eventuais-suas.firebaseapp.com",
@@ -27,6 +25,15 @@ const hideLoading = () => {
     if (overlay) overlay.style.display = 'none';
 };
 
+const logActivity = (userId, message, action) => {
+    db.collection('logs').add({
+        userId: userId,
+        message: message,
+        action: action,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(error => console.error("Erro ao registrar log:", error));
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -42,11 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (userDoc.exists) {
                 const userData = userDoc.data();
-                if (userData.active) {
+                if (userData.status === 'Cedido') {
                     localStorage.setItem('currentUser', JSON.stringify({ id: user.uid, ...userData }));
+                    logActivity(user.uid, `Login bem-sucedido para o usuário ${userData.username}`, 'login');
                     window.location.href = 'index.html';
                 } else {
-                    alert('Sua conta está desativada.');
+                    alert('Sua conta está desativada ou pendente. Contate o administrador.');
                     await auth.signOut();
                 }
             } else {

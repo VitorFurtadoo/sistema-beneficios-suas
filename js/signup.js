@@ -1,5 +1,3 @@
-/* js/signup.js - Lógica de Cadastro (Sem Cloud Function) */
-
 const firebaseConfig = {
     apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
     authDomain: "beneficios-eventuais-suas.firebaseapp.com",
@@ -54,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await db.collection('users').doc(user.uid).set({
                 email: user.email,
                 role: 'user',
-                active: true,
+                status: 'Pendente',
                 username: user.email.split('@')[0],
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });

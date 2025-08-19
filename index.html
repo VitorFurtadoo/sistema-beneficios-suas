@@ -53,7 +53,7 @@
             </div>
             <div class="form-group">
                 <label>Valor</label>
-                <input type="number" name="valor" step="0.01" placeholder="0.00" required>
+                <input type="number" name="valor" step="0.01" min="0" placeholder="0.00" required>
             </div>
             <div class="form-group">
                 <label>Benefício</label>
@@ -68,7 +68,7 @@
             </div>
             <div class="form-group">
                 <label>Quantidade</label>
-                <input type="number" name="quantidade" placeholder="0" required>
+                <input type="number" name="quantidade" min="0" placeholder="0" required>
             </div>
             <div class="form-group">
                 <label>Equipamento</label>
@@ -175,9 +175,9 @@
             <div class="form-group"><label>Beneficiário</label><input type="text" id="edit-beneficiario" name="beneficiario" required></div>
             <div class="form-group"><label>CPF</label><input type="text" id="edit-cpf" name="cpf" required></div>
             <div class="form-group"><label>Data</label><input type="date" id="edit-data" name="data" required></div>
-            <div class="form-group"><label>Valor</label><input type="number" id="edit-valor" name="valor" step="0.01" required></div>
+            <div class="form-group"><label>Valor</label><input type="number" id="edit-valor" name="valor" min="0" step="0.01" required></div>
             <div class="form-group"><label>Benefício</label><input type="text" id="edit-beneficio" name="beneficio" required></div>
-            <div class="form-group"><label>Quantidade</label><input type="number" id="edit-quantidade" name="quantidade"></div>
+            <div class="form-group"><label>Quantidade</label><input type="number" id="edit-quantidade" name="quantidade" min="0"></div>
             <div class="form-group"><label>Equipamento</label><input type="text" id="edit-equipamento" name="equipamento"></div>
             <div class="form-group"><label>Responsável</label><input type="text" id="edit-responsavel" name="responsavel"></div>
             <div class="form-group"><label>Status</label><select id="edit-status" name="status"><option>Cedido</option><option>Pendente</option><option>Negado</option></select></div>
@@ -272,9 +272,34 @@
 
     <section id="adminSection" class="section">
         <button class="back-btn" data-section="mainMenu">← Voltar</button>
-        <h2>Administração de Usuários</th>
+        <h2>Administração de Usuários</h2>
+        <div class="table-wrapper">
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>Usuário</th>
+                        <th>Função</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+        <hr>
+        <h2>Histórico de Atividades</h2>
+        <div class="table-wrapper">
+            <table id="logsTable">
+                <thead>
+                    <tr>
+                        <th>Data e Hora</th>
+                        <th>Mensagem</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
             </table>
         </div>
     </section>
