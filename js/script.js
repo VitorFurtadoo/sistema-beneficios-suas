@@ -846,49 +846,75 @@ document.addEventListener('DOMContentLoaded', () => {
     const applyLogsFilter = async () => {
         showLoading();
         try {
-            let query = logsCollection.orderBy('timestamp', 'desc');
+            // Primeiro tenta buscar todos os logs
+            let allLogs = [];
+            
+            try {
+                const snapshot = await logsCollection.orderBy('timestamp', 'desc').limit(500).get();
+                allLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (firestoreError) {
+                console.warn("Erro ao buscar logs do Firestore, tentando método alternativo:", firestoreError);
+                // Se falhar, tenta buscar sem ordenação
+                const fallbackSnapshot = await logsCollection.limit(500).get();
+                allLogs = fallbackSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Ordenar manualmente por timestamp
+                allLogs.sort((a, b) => {
+                    if (!a.timestamp || !b.timestamp) return 0;
+                    return b.timestamp.toDate() - a.timestamp.toDate();
+                });
+            }
             
             const dateStart = document.getElementById('logs-date-start').value;
             const dateEnd = document.getElementById('logs-date-end').value;
             const actionFilter = document.getElementById('logs-action-filter').value;
             
+            let filteredLogs = allLogs;
+            
+            // Aplicar filtros no cliente
             if (dateStart) {
-                const startTimestamp = firebase.firestore.Timestamp.fromDate(new Date(dateStart + 'T00:00:00'));
-                query = query.where('timestamp', '>=', startTimestamp);
+                const startDate = new Date(dateStart + 'T00:00:00');
+                filteredLogs = filteredLogs.filter(log => {
+                    if (!log.timestamp) return false;
+                    try {
+                        const logDate = log.timestamp.toDate();
+                        return logDate >= startDate;
+                    } catch (e) {
+                        return false;
+                    }
+                });
             }
             
             if (dateEnd) {
-                const endTimestamp = firebase.firestore.Timestamp.fromDate(new Date(dateEnd + 'T23:59:59'));
-                query = query.where('timestamp', '<=', endTimestamp);
+                const endDate = new Date(dateEnd + 'T23:59:59');
+                filteredLogs = filteredLogs.filter(log => {
+                    if (!log.timestamp) return false;
+                    try {
+                        const logDate = log.timestamp.toDate();
+                        return logDate <= endDate;
+                    } catch (e) {
+                        return false;
+                    }
+                });
             }
             
             if (actionFilter) {
-                query = query.where('action', '==', actionFilter);
+                filteredLogs = filteredLogs.filter(log => log.action === actionFilter);
             }
             
-            const snapshot = await query.limit(100).get();
-            const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Limitar a 100 resultados para não sobrecarregar a interface
+            filteredLogs = filteredLogs.slice(0, 100);
             
-            renderFilteredLogs(logs);
+            renderFilteredLogs(filteredLogs);
             
             const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-            logActivity(currentUser.id, `Aplicou filtros nos logs: ${logs.length} registros encontrados`, 'filter_logs');
+            if (currentUser) {
+                logActivity(currentUser.id, `Aplicou filtros nos logs: ${filteredLogs.length} registros encontrados`, 'filter_logs');
+            }
             
         } catch (error) {
-            console.error("Erro ao filtrar logs:", error);
-            // Silencioso - apenas log no console
-            const tbody = document.querySelector('#logsTable tbody');
-            if (tbody) {
-                tbody.innerHTML = '';
-                const row = tbody.insertRow();
-                const cell = row.insertCell(0);
-                cell.textContent = "Erro ao filtrar logs. Verifique os filtros e tente novamente.";
-                cell.colSpan = 6;
-                cell.style.textAlign = 'center';
-                cell.style.padding = '20px';
-                cell.style.fontStyle = 'italic';
-                cell.style.color = '#999';
-            }
+            console.error("Erro geral ao filtrar logs:", error);
+            // Fallback para mostrar logs sem filtro
+            renderLogsTable();
         } finally {
             hideLoading();
         }
