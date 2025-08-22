@@ -28,13 +28,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (overlay) overlay.style.display = 'none';
     };
 
-    const logActivity = (userId, message, action) => {
-        logsCollection.add({
+    const logActivity = (userId, message, action, details = {}) => {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        const logData = {
             userId: userId,
+            username: currentUser?.username || 'Usuário Desconhecido',
+            userRole: currentUser?.role || 'user',
             message: message,
             action: action,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(error => console.error("Erro ao registrar log:", error));
+            details: details,
+            ipAddress: 'N/A', // Placeholder - real IP would need server-side
+            userAgent: navigator.userAgent.substring(0, 100), // Limitar tamanho
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            sessionId: currentUser?.sessionId || 'N/A'
+        };
+        
+        logsCollection.add(logData)
+            .then(() => console.log(`Log registrado: ${action} - ${message}`))
+            .catch(error => console.error("Erro ao registrar log:", error));
     };
 
     const checkLoginStatus = (user) => {
@@ -63,6 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleLogout = () => {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (currentUser) {
+            // Log de logout antes de remover dados
+            logActivity(currentUser.id, `Usuário ${currentUser.username} fez logout do sistema`, 'user_logout');
+        }
+        
         auth.signOut().then(() => {
             localStorage.removeItem('currentUser');
             window.location.href = 'login.html';
@@ -83,6 +100,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (sectionId === 'adminSection') {
                     renderUsersTable();
                     renderLogsTable();
+                }
+                
+                // Log da navegação
+                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+                if (currentUser) {
+                    const sectionNames = {
+                        'mainMenu': 'Menu Principal',
+                        'cadastrarSection': 'Cadastrar Benefício',
+                        'consultaSection': 'Consultar Benefícios',
+                        'graficosSection': 'Gráficos',
+                        'adminSection': 'Administração',
+                        'editSection': 'Editar Benefício'
+                    };
+                    logActivity(currentUser.id, `Acessou a seção: ${sectionNames[sectionId] || sectionId}`, 'navigate_section', { section: sectionId });
                 }
             } else {
                 console.error(`Erro: Elemento com ID '${sectionId}' não encontrado.`);
@@ -230,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Chamando renderLogsTable...");
         showLoading();
         try {
-            const snapshot = await logsCollection.orderBy('timestamp', 'desc').get();
+            const snapshot = await logsCollection.orderBy('timestamp', 'desc').limit(100).get();
             const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             const tbody = document.querySelector('#logsTable tbody');
 
@@ -246,22 +277,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 const row = tbody.insertRow();
                 const cell = row.insertCell(0);
                 cell.textContent = "Nenhum log de atividade encontrado.";
-                cell.colSpan = 3;
+                cell.colSpan = 6;
+                cell.style.textAlign = 'center';
+                cell.style.padding = '20px';
+                cell.style.fontStyle = 'italic';
+                cell.style.color = '#666';
             } else {
                 console.log(`Encontrados ${logs.length} logs. Preenchendo tabela...`);
                 logs.forEach(log => {
                     const row = tbody.insertRow();
-                    const timestamp = log.timestamp ? log.timestamp.toDate().toLocaleString('pt-BR') : '';
+                    const timestamp = log.timestamp ? log.timestamp.toDate().toLocaleString('pt-BR') : 'Data não disponível';
+                    const username = log.username || 'Usuário Desconhecido';
+                    const userRole = log.userRole || 'N/A';
+                    const action = log.action || 'N/A';
+                    const message = log.message || 'Sem descrição';
+                    
+                    // Definir cor baseada no tipo de ação
+                    let actionClass = '';
+                    if (action.includes('delete')) actionClass = 'action-delete';
+                    else if (action.includes('create')) actionClass = 'action-create';
+                    else if (action.includes('edit')) actionClass = 'action-edit';
+                    else if (action.includes('login')) actionClass = 'action-login';
+                    else if (action.includes('export')) actionClass = 'action-export';
+                    
                     row.innerHTML = `
-                        <td>${timestamp}</td>
-                        <td>${log.message}</td>
-                        <td>${log.action}</td>
+                        <td style="font-size: 0.9em;">${timestamp}</td>
+                        <td><strong>${username}</strong> <span style="color: #666; font-size: 0.8em;">(${userRole})</span></td>
+                        <td>${message}</td>
+                        <td><span class="action-badge ${actionClass}">${action}</span></td>
+                        <td style="font-size: 0.8em; color: #666;">${log.userId?.substring(0, 8) || 'N/A'}...</td>
+                        <td style="font-size: 0.8em; color: #666;">${log.userAgent?.substring(0, 30) || 'N/A'}...</td>
                     `;
                 });
             }
         } catch (error) {
             console.error("Erro ao carregar logs:", error);
-            alert("Não foi possível carregar os logs.");
+            // Silencioso - não mostrar alert para não incomodar o usuário
+            const tbody = document.querySelector('#logsTable tbody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                const row = tbody.insertRow();
+                const cell = row.insertCell(0);
+                cell.textContent = "Erro ao carregar logs. Tente novamente mais tarde.";
+                cell.colSpan = 6;
+                cell.style.textAlign = 'center';
+                cell.style.padding = '20px';
+                cell.style.fontStyle = 'italic';
+                cell.style.color = '#999';
+            }
         } finally {
             hideLoading();
         }
@@ -332,12 +395,177 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const handleExportDisabled = () => {
-        alert("A funcionalidade de exportação de planilha está em desenvolvimento.");
+    const exportToExcel = () => {
+        const table = document.getElementById('beneficiosTable');
+        const tbody = table?.querySelector('tbody');
+        
+        if (!table || !tbody) {
+            alert("Nenhuma tabela encontrada para exportar.");
+            return;
+        }
+
+        const rows = tbody.querySelectorAll('tr');
+        if (rows.length === 0) {
+            alert("Nenhum dado encontrado para exportar. Aplique os filtros ou carregue os dados primeiro.");
+            return;
+        }
+
+        // Criar HTML com estilos para Excel
+        let htmlContent = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+              xmlns:x="urn:schemas-microsoft-com:office:excel" 
+              xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+            <meta charset="utf-8">
+            <style>
+                .header { 
+                    background-color: #38a169; 
+                    color: white; 
+                    font-weight: bold; 
+                    text-align: center;
+                    border: 1px solid #2d3748;
+                    padding: 8px;
+                }
+                .data-cell { 
+                    border: 1px solid #e2e8f0; 
+                    padding: 6px;
+                    text-align: left;
+                }
+                .status-cedido { 
+                    background-color: #c6f6d5; 
+                    color: #22543d;
+                }
+                .status-pendente { 
+                    background-color: #fef2e2; 
+                    color: #744210;
+                }
+                .status-negado { 
+                    background-color: #fed7d7; 
+                    color: #742a2a;
+                }
+                .valor-cell {
+                    text-align: right;
+                    background-color: #f7fafc;
+                }
+                .data-cell-alt {
+                    background-color: #f8f9fa;
+                }
+                table {
+                    border-collapse: collapse;
+                    width: 100%;
+                    font-family: Arial, sans-serif;
+                    font-size: 11px;
+                }
+                .title {
+                    background-color: #2d3748;
+                    color: white;
+                    font-size: 16px;
+                    font-weight: bold;
+                    text-align: center;
+                    padding: 12px;
+                    border: 1px solid #1a202c;
+                }
+            </style>
+        </head>
+        <body>
+            <table>
+                <tr>
+                    <td colspan="11" class="title">
+                        SEMDES - Sistema de Benefícios Eventuais - Relatório Exportado em ${new Date().toLocaleDateString('pt-BR')}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="header">Beneficiário</td>
+                    <td class="header">CPF</td>
+                    <td class="header">Data</td>
+                    <td class="header">Valor (R$)</td>
+                    <td class="header">Benefício</td>
+                    <td class="header">Quantidade</td>
+                    <td class="header">Equipamento</td>
+                    <td class="header">Responsável</td>
+                    <td class="header">Status</td>
+                    <td class="header">Observações</td>
+                    <td class="header">Última Atualização</td>
+                </tr>`;
+
+        // Processar dados das linhas visíveis
+        rows.forEach((row, rowIndex) => {
+            const cells = row.querySelectorAll('td');
+            const isEvenRow = rowIndex % 2 === 0;
+            
+            htmlContent += '<tr>';
+            
+            // Processar cada célula (exceto a última que é "Ações")
+            for (let i = 0; i < cells.length - 1; i++) {
+                let cellText = cells[i].textContent.trim();
+                let cellClass = isEvenRow ? 'data-cell' : 'data-cell data-cell-alt';
+                
+                // Aplicar estilos especiais baseados no conteúdo
+                if (i === 3) { // Coluna de valor
+                    cellClass += ' valor-cell';
+                    if (cellText.startsWith('R$')) {
+                        cellText = cellText.replace('R$ ', '').replace(/\./g, '').replace(',', '.');
+                    }
+                } else if (i === 8) { // Coluna de status
+                    const status = cellText.toLowerCase();
+                    if (status === 'cedido') cellClass += ' status-cedido';
+                    else if (status === 'pendente') cellClass += ' status-pendente';
+                    else if (status === 'negado') cellClass += ' status-negado';
+                }
+                
+                htmlContent += `<td class="${cellClass}">${cellText}</td>`;
+            }
+            
+            htmlContent += '</tr>';
+        });
+
+        htmlContent += `
+            </table>
+            <br>
+            <p style="font-size: 10px; color: #666; font-style: italic;">
+                Total de registros: ${rows.length} | 
+                Gerado em: ${new Date().toLocaleString('pt-BR')} | 
+                Sistema de Benefícios Eventuais - SEMDES Paragominas
+            </p>
+            <p style="font-size: 9px; color: #888; font-style: italic; margin-top: 5px;">
+                © 2024 Desenvolvido por Vitor Furtado | Vigilância SUAS Paragominas | Todos os direitos reservados
+            </p>
+        </body>
+        </html>`;
+
+        // Criar e fazer download do arquivo
+        const blob = new Blob([htmlContent], { 
+            type: 'application/vnd.ms-excel;charset=utf-8;' 
+        });
+        
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        
+        // Nome do arquivo com data atual
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
+        const timeStr = now.toLocaleTimeString('pt-BR').replace(/:/g, '-');
+        link.download = `beneficios_eventuais_${dateStr}_${timeStr}.xls`;
+        
+        // Executar download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Limpeza
+        URL.revokeObjectURL(url);
+        
+        console.log(`Arquivo Excel exportado: ${rows.length} registros`);
+        
+        // Log da exportação
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        logActivity(currentUser.id, `Exportou ${rows.length} registros para Excel`, 'export_excel', { recordCount: rows.length });
     };
+
     const exportButton = document.getElementById('btn-exportar-csv');
     if (exportButton) {
-        exportButton.addEventListener('click', handleExportDisabled);
+        exportButton.addEventListener('click', exportToExcel);
     }
 
     let chartPeriodo = null;
@@ -562,6 +790,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const equipamento = document.getElementById('filter-equipamento').value;
             const beneficio = document.getElementById('filter-beneficio').value;
 
+            const filterDetails = {
+                dataStart: dataStart || 'Não informado',
+                dataEnd: dataEnd || 'Não informado',
+                status: status || 'Todos',
+                equipamento: equipamento || 'Todos',
+                beneficio: beneficio || 'Todos'
+            };
+
             let filteredBeneficios = allBeneficios;
 
             if (dataStart) {
@@ -585,6 +821,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             renderTable(filteredBeneficios);
+            
+            // Log da aplicação de filtros
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            logActivity(currentUser.id, `Aplicou filtros na consulta: ${filteredBeneficios.length} registros encontrados`, 'apply_filters', filterDetails);
+            
         } catch (error) {
             console.error("Erro ao aplicar filtros:", error);
             alert("Não foi possível aplicar os filtros.");
@@ -602,18 +843,165 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchBeneficios();
     };
 
+    const applyLogsFilter = async () => {
+        showLoading();
+        try {
+            let query = logsCollection.orderBy('timestamp', 'desc');
+            
+            const dateStart = document.getElementById('logs-date-start').value;
+            const dateEnd = document.getElementById('logs-date-end').value;
+            const actionFilter = document.getElementById('logs-action-filter').value;
+            
+            if (dateStart) {
+                const startTimestamp = firebase.firestore.Timestamp.fromDate(new Date(dateStart + 'T00:00:00'));
+                query = query.where('timestamp', '>=', startTimestamp);
+            }
+            
+            if (dateEnd) {
+                const endTimestamp = firebase.firestore.Timestamp.fromDate(new Date(dateEnd + 'T23:59:59'));
+                query = query.where('timestamp', '<=', endTimestamp);
+            }
+            
+            if (actionFilter) {
+                query = query.where('action', '==', actionFilter);
+            }
+            
+            const snapshot = await query.limit(100).get();
+            const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            renderFilteredLogs(logs);
+            
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            logActivity(currentUser.id, `Aplicou filtros nos logs: ${logs.length} registros encontrados`, 'filter_logs');
+            
+        } catch (error) {
+            console.error("Erro ao filtrar logs:", error);
+            // Silencioso - apenas log no console
+            const tbody = document.querySelector('#logsTable tbody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                const row = tbody.insertRow();
+                const cell = row.insertCell(0);
+                cell.textContent = "Erro ao filtrar logs. Verifique os filtros e tente novamente.";
+                cell.colSpan = 6;
+                cell.style.textAlign = 'center';
+                cell.style.padding = '20px';
+                cell.style.fontStyle = 'italic';
+                cell.style.color = '#999';
+            }
+        } finally {
+            hideLoading();
+        }
+    };
+
+    const clearLogsFilter = () => {
+        document.getElementById('logs-date-start').value = '';
+        document.getElementById('logs-date-end').value = '';
+        document.getElementById('logs-action-filter').value = '';
+        renderLogsTable();
+    };
+
+    const clearOldLogs = async () => {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (currentUser.role !== 'admin') {
+            alert('Apenas administradores podem limpar logs antigos.');
+            return;
+        }
+        
+        if (!confirm('Tem certeza que deseja excluir logs com mais de 30 dias? Esta ação não pode ser desfeita.')) {
+            return;
+        }
+        
+        showLoading();
+        try {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const cutoffTimestamp = firebase.firestore.Timestamp.fromDate(thirtyDaysAgo);
+            
+            const snapshot = await logsCollection.where('timestamp', '<', cutoffTimestamp).get();
+            
+            if (snapshot.empty) {
+                alert('Nenhum log antigo encontrado para exclusão.');
+                return;
+            }
+            
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            
+            await batch.commit();
+            alert(`${snapshot.docs.length} logs antigos foram excluídos com sucesso.`);
+            
+            logActivity(currentUser.id, `Excluiu ${snapshot.docs.length} logs antigos (mais de 30 dias)`, 'clear_old_logs');
+            renderLogsTable();
+            
+        } catch (error) {
+            console.error("Erro ao limpar logs antigos:", error);
+            alert("Não foi possível limpar os logs antigos.");
+        } finally {
+            hideLoading();
+        }
+    };
+
+    const renderFilteredLogs = (logs) => {
+        const tbody = document.querySelector('#logsTable tbody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '';
+        
+        if (logs.length === 0) {
+            const row = tbody.insertRow();
+            const cell = row.insertCell(0);
+            cell.textContent = "Nenhum log encontrado com os filtros aplicados.";
+            cell.colSpan = 6;
+            cell.style.textAlign = 'center';
+            cell.style.padding = '20px';
+            cell.style.fontStyle = 'italic';
+            cell.style.color = '#666';
+        } else {
+            logs.forEach(log => {
+                const row = tbody.insertRow();
+                const timestamp = log.timestamp ? log.timestamp.toDate().toLocaleString('pt-BR') : 'Data não disponível';
+                const username = log.username || 'Usuário Desconhecido';
+                const userRole = log.userRole || 'N/A';
+                const action = log.action || 'N/A';
+                const message = log.message || 'Sem descrição';
+                
+                let actionClass = '';
+                if (action.includes('delete')) actionClass = 'action-delete';
+                else if (action.includes('create')) actionClass = 'action-create';
+                else if (action.includes('edit')) actionClass = 'action-edit';
+                else if (action.includes('login')) actionClass = 'action-login';
+                else if (action.includes('export')) actionClass = 'action-export';
+                
+                row.innerHTML = `
+                    <td style="font-size: 0.9em;">${timestamp}</td>
+                    <td><strong>${username}</strong> <span style="color: #666; font-size: 0.8em;">(${userRole})</span></td>
+                    <td>${message}</td>
+                    <td><span class="action-badge ${actionClass}">${action}</span></td>
+                    <td style="font-size: 0.8em; color: #666;">${log.userId?.substring(0, 8) || 'N/A'}...</td>
+                    <td style="font-size: 0.8em; color: #666;">${log.userAgent?.substring(0, 30) || 'N/A'}...</td>
+                `;
+            });
+        }
+    };
+
     auth.onAuthStateChanged(user => {
         if (user) {
             console.log("Usuário autenticado. Verificando dados...");
             db.collection('users').doc(user.uid).get().then(userDoc => {
                 if (userDoc.exists) {
                     const userData = userDoc.data();
-                    localStorage.setItem('currentUser', JSON.stringify({ id: user.uid, ...userData }));
+                    localStorage.setItem('currentUser', JSON.stringify({ id: user.uid, ...userData, sessionId: Date.now().toString() }));
                     console.log("Dados do usuário sincronizados. Inicializando a aplicação...");
                     
                     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
                     const welcomeMessage = document.getElementById('welcome-message');
                     if (welcomeMessage) welcomeMessage.textContent = `Bem-vindo(a), ${currentUser.username}!`;
+                    
+                    // Log de login
+                    logActivity(currentUser.id, `Usuário ${currentUser.username} fez login no sistema`, 'user_login', { userRole: currentUser.role });
 
                     const adminButton = document.getElementById('adminMenuButton');
                     if (adminButton && currentUser.role === 'admin') adminButton.style.display = 'flex';
@@ -641,6 +1029,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     document.getElementById('apply-filters-btn')?.addEventListener('click', applyConsultaFilters);
                     document.getElementById('clear-filters-btn')?.addEventListener('click', clearConsultaFilters);
+                    
+                    // Event listeners para filtros de logs
+                    document.getElementById('apply-logs-filter-btn')?.addEventListener('click', applyLogsFilter);
+                    document.getElementById('clear-logs-filter-btn')?.addEventListener('click', clearLogsFilter);
+                    document.getElementById('clear-old-logs-btn')?.addEventListener('click', clearOldLogs);
 
                     showSection('mainMenu');
                 } else {

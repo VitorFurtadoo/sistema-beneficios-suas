@@ -151,11 +151,12 @@
                     <option value="Alugel Social">Alugel Social</option>
                 </select>
             </div>
-            <button id="apply-filters-btn" class="submit-btn">Aplicar Filtros</button>
-            <button id="clear-filters-btn" class="secondary-btn">Limpar Filtros</button>
+            <div class="filter-actions">
+                <button id="apply-filters-btn" class="submit-btn">Aplicar Filtros</button>
+                <button id="clear-filters-btn" class="secondary-btn">Limpar Filtros</button>
+                <button id="btn-exportar-csv" class="export-btn">Exportar Excel</button>
+            </div>
         </div>
-        
-        <button id="btn-exportar-csv" class="export-btn">Exportar CSV</button>
         <div class="table-wrapper">
             <table id="beneficiosTable">
                 <thead>
@@ -292,13 +293,45 @@
         </div>
         <hr>
         <h2>Histórico de Atividades</h2>
+        <div class="filter-container">
+            <div class="filter-group">
+                <label for="logs-date-start">De:</label>
+                <input type="date" id="logs-date-start">
+            </div>
+            <div class="filter-group">
+                <label for="logs-date-end">Até:</label>
+                <input type="date" id="logs-date-end">
+            </div>
+            <div class="filter-group">
+                <label for="logs-action-filter">Ação:</label>
+                <select id="logs-action-filter">
+                    <option value="">Todas</option>
+                    <option value="user_login">Login</option>
+                    <option value="user_logout">Logout</option>
+                    <option value="create_beneficio">Criar Benefício</option>
+                    <option value="edit_beneficio">Editar Benefício</option>
+                    <option value="delete_beneficio">Excluir Benefício</option>
+                    <option value="apply_filters">Aplicar Filtros</option>
+                    <option value="export_excel">Exportar Excel</option>
+                    <option value="navigate_section">Navegar Seção</option>
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button id="apply-logs-filter-btn" class="submit-btn">Filtrar Logs</button>
+                <button id="clear-logs-filter-btn" class="secondary-btn">Limpar Filtro</button>
+                <button id="clear-old-logs-btn" class="delete-btn">Limpar Logs Antigos (30+ dias)</button>
+            </div>
+        </div>
         <div class="table-wrapper">
             <table id="logsTable">
                 <thead>
                     <tr>
                         <th>Data e Hora</th>
-                        <th>Mensagem</th>
+                        <th>Usuário</th>
+                        <th>Descrição</th>
                         <th>Ação</th>
+                        <th>ID do Usuário</th>
+                        <th>Navegador</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -306,6 +339,20 @@
             </table>
         </div>
     </section>
+
+    <footer class="app-footer">
+        <div class="footer-content">
+            <p class="copyright">
+                © 2024 Sistema de Benefícios Eventuais - SEMDES Paragominas
+            </p>
+            <p class="developer-info">
+                Desenvolvido por <strong>Vitor Furtado</strong> | Vigilância SUAS Paragominas
+            </p>
+            <p class="version-info">
+                Versão 1.0 | Todos os direitos reservados
+            </p>
+        </div>
+    </footer>
 
     <script src="js/script.js"></script>
 </body>

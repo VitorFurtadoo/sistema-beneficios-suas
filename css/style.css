@@ -234,6 +234,112 @@ input:focus, select:focus, textarea:focus {
     font-size: 0.9em;
     color: var(--secondary-color);
 }
+
+.filter-actions {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.filter-actions .submit-btn,
+.filter-actions .secondary-btn,
+.filter-actions .export-btn {
+    width: auto;
+    min-width: 140px;
+}
+
+.action-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.action-create {
+    background-color: #c6f6d5;
+    color: #22543d;
+}
+
+.action-edit {
+    background-color: #bee3f8;
+    color: #2c5282;
+}
+
+.action-delete {
+    background-color: #fed7d7;
+    color: #742a2a;
+}
+
+.action-login {
+    background-color: #e6fffa;
+    color: #234e52;
+}
+
+.action-export {
+    background-color: #fef2e2;
+    color: #744210;
+}
+
+/* ===== RODAPÉ ===== */
+.app-footer {
+    background-color: var(--secondary-color);
+    color: white;
+    padding: 20px;
+    margin-top: 40px;
+    text-align: center;
+    border-top: 3px solid var(--primary-color);
+}
+
+.footer-content {
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+.footer-content p {
+    margin: 5px 0;
+    font-size: 0.9em;
+}
+
+.copyright {
+    font-weight: 600;
+    color: white;
+}
+
+.developer-info {
+    color: #e2e8f0;
+    font-size: 0.85em;
+}
+
+.developer-info strong {
+    color: var(--primary-light);
+    font-weight: 600;
+}
+
+.version-info {
+    color: #a0aec0;
+    font-size: 0.8em;
+    margin-top: 8px;
+}
+
+.login-footer {
+    margin-top: 30px;
+    text-align: center;
+    padding: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.login-footer p {
+    font-size: 0.8em;
+    color: var(--secondary-color);
+    margin: 0;
+}
+
+.login-footer strong {
+    color: var(--primary-color);
+}
 .checkbox-group {
     display: flex;
     flex-wrap: wrap;
