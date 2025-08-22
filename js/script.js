@@ -1,608 +1,506 @@
-/* js/script.js - Lógica da Aplicação Principal */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM carregado. Iniciando script.js...");
+    console.log("DOM totalmente carregado. Iniciando a aplicação.");
 
     const firebaseConfig = {
         apiKey: "AIzaSyAnYj37TDwV0kkB9yBeJguZCEqHvWV7vAY",
         authDomain: "beneficios-eventuais-suas.firebaseapp.com",
         projectId: "beneficios-eventuais-suas",
-        storageBucket: "beneficios-eventuais-suas.appspot.com",
+        storageBucket: "beneficios-eventuais-suas.firebasestorage.app",
         messagingSenderId: "665210304564",
         appId: "1:665210304564:web:cf233fd0e56bbfe3d5b261"
     };
 
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-
-    const auth = firebase.auth();
+    if (firebase.apps.length === 0) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    
     const db = firebase.firestore();
     const beneficiosCollection = db.collection('beneficios');
     const usersCollection = db.collection('users');
-    const logsCollection = db.collection('logs');
 
-    const showLoading = () => {
-        const overlay = document.getElementById('loading-overlay');
-        if (overlay) overlay.style.display = 'flex';
-    };
-    const hideLoading = () => {
-        const overlay = document.getElementById('loading-overlay');
-        if (overlay) overlay.style.display = 'none';
-    };
+    let currentUser = null;
 
-    const logActivity = (userId, message, action) => {
-        logsCollection.add({
-            userId: userId,
-            message: message,
-            action: action,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(error => console.error("Erro ao registrar log:", error));
-    };
+    // Elementos do DOM (inicializados com 'null' para evitar erros em páginas diferentes)
+    let form = null;
+    let editForm = null;
+    let adminForm = null;
+    let equipamentoSelect = null;
+    let responsavelGroup = null;
+    let responsavelInput = null;
+    let tableBody = null;
+    let menuButtons = null;
+    let backButtons = null;
+    let filterBtn = null;
+    let clearFilterBtn = null;
+    let separateBtn = null;
+    let exportBtn = null;
+    let logoutBtn = null;
 
-    const checkLoginStatus = (user) => {
-        if (!user) {
-            console.log("Usuário não logado. Redirecionando para login.html.");
-            window.location.href = 'login.html';
-            return false;
-        }
-
-        const userStr = localStorage.getItem('currentUser');
-        if (!userStr) {
-            auth.signOut();
-            window.location.href = 'login.html';
-            return false;
-        }
-
-        const currentUser = JSON.parse(userStr);
-        const welcomeMessage = document.getElementById('welcome-message');
-        if (welcomeMessage) welcomeMessage.textContent = `Bem-vindo(a), ${currentUser.username}!`;
-
-        const adminButton = document.getElementById('adminMenuButton');
-        if (adminButton && currentUser.role === 'admin') adminButton.style.display = 'flex';
-        
-        console.log("Usuário logado. Retornando true.");
-        return true;
-    };
-
-    const handleLogout = () => {
-        auth.signOut().then(() => {
-            localStorage.removeItem('currentUser');
-            window.location.href = 'login.html';
-        });
-    };
-
-    const showSection = (sectionId) => {
-        console.log(`Tentando mostrar a seção: ${sectionId}`);
-        document.querySelectorAll('.section, .main-menu').forEach(sec => sec.classList.remove('active'));
-        
-        if (sectionId === 'mainMenu') {
-            document.getElementById('mainMenu').classList.add('active');
-        } else {
-            const target = document.getElementById(sectionId);
-            if (target) {
-                target.classList.add('active');
-                if (sectionId === 'consultaSection') fetchBeneficios();
-                if (sectionId === 'adminSection') {
-                    renderUsersTable();
-                    renderLogsTable();
-                }
-            } else {
-                console.error(`Erro: Elemento com ID '${sectionId}' não encontrado.`);
-            }
-        }
-    };
-
-    const fetchBeneficios = async () => {
-        showLoading();
-        try {
-            const snapshot = await beneficiosCollection.orderBy('data', 'desc').get();
-            const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderTable(allBeneficios);
-        } catch (error) {
-            console.error("Erro ao buscar benefícios:", error);
-            alert("Não foi possível carregar os benefícios.");
-        } finally { hideLoading(); }
-    };
-
-    const renderTable = (data) => {
-        const tableBody = document.querySelector('#beneficiosTable tbody');
-        if (!tableBody) return;
-        tableBody.innerHTML = '';
-        data.forEach(b => {
-            const row = tableBody.insertRow();
-            row.dataset.id = b.id;
-            const dataObj = new Date(b.data + 'T03:00:00');
-            const dataFormatada = !isNaN(dataObj.getTime()) ? dataObj.toLocaleDateString('pt-BR') : '';
-            const valorFormatado = typeof b.valor === 'number' ? `R$ ${b.valor.toFixed(2).replace('.', ',')}` : b.valor || '';
-            row.innerHTML = `
-                <td>${b.beneficiario || ''}</td>
-                <td>${b.cpf || ''}</td>
-                <td>${dataFormatada}</td>
-                <td>${valorFormatado}</td>
-                <td>${b.beneficio || ''}</td>
-                <td>${b.quantidade || ''}</td>
-                <td>${b.equipamento || ''}</td>
-                <td>${b.responsavel || ''}</td>
-                <td>${b.status || ''}</td>
-                <td>${b.observacoes || ''}</td>
-                <td>${b.lastUpdated || ''}</td>
-                <td class="table-actions">
-                    <button class="edit-btn" data-id="${b.id}">Editar</button>
-                    <button class="delete-btn" data-id="${b.id}">Excluir</button>
-                </td>
-            `;
-        });
-    };
-
-    const handleFormSubmit = async (e) => {
-        e.preventDefault();
-        showLoading();
-        
-        const valorInput = e.target.querySelector('input[name="valor"]');
-        const quantidadeInput = e.target.querySelector('input[name="quantidade"]');
-        if (parseFloat(valorInput.value) < 0 || parseInt(quantidadeInput.value) < 0) {
-            alert('Valores não podem ser negativos!');
-            hideLoading();
-            return;
-        }
-
-        try {
-            const formData = Object.fromEntries(new FormData(e.target).entries());
-            formData.lastUpdated = new Date().toLocaleString('pt-BR');
-            await beneficiosCollection.add(formData);
-            alert('Benefício cadastrado!');
-            e.target.reset();
-            showSection('consultaSection');
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-            logActivity(currentUser.id, `Cadastrou um novo benefício para ${formData.beneficiario}`, 'create_beneficio');
-        } catch(error) {
-            console.error("Erro ao cadastrar:", error);
-            alert("Falha ao cadastrar benefício.");
-        } finally { hideLoading(); }
-    };
-
-    const handleEditFormSubmit = async (e) => {
-        e.preventDefault();
-        showLoading();
-
-        const valorInput = e.target.querySelector('input[name="valor"]');
-        const quantidadeInput = e.target.querySelector('input[name="quantidade"]');
-        if (parseFloat(valorInput.value) < 0 || parseInt(quantidadeInput.value) < 0) {
-            alert('Valores não podem ser negativos!');
-            hideLoading();
-            return;
-        }
-
-        try {
-            const docId = document.getElementById('editIndex').value;
-            const updated = Object.fromEntries(new FormData(e.target).entries());
-            updated.lastUpdated = new Date().toLocaleString('pt-BR');
-            await beneficiosCollection.doc(docId).update(updated);
-            alert('Registro atualizado!');
-            showSection('consultaSection');
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-            logActivity(currentUser.id, `Editou o benefício ${docId} de ${updated.beneficiario}`, 'edit_beneficio');
-        } catch(error) {
-            console.error("Erro ao atualizar:", error);
-            alert("Falha ao atualizar registro.");
-        } finally { hideLoading(); }
-    };
-
-    const renderUsersTable = async () => {
-        console.log("Chamando renderUsersTable...");
-        showLoading();
-        try {
-            const snapshot = await usersCollection.get();
-            const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const tbody = document.querySelector('#usersTable tbody');
-            
-            if(!tbody) {
-                console.error("Elemento tbody para a tabela de usuários não encontrado!");
-                return;
-            }
-
-            tbody.innerHTML = '';
-            
-            if (users.length === 0) {
-                console.log("Nenhum usuário encontrado no Firestore.");
-                const row = tbody.insertRow();
-                const cell = row.insertCell(0);
-                cell.textContent = "Nenhum usuário encontrado.";
-                cell.colSpan = 4;
-            } else {
-                console.log(`Encontrados ${users.length} usuários. Preenchendo tabela...`);
-                users.forEach(u => {
-                    const row = tbody.insertRow();
-                    const statusDisplay = u.status || 'Não definido';
-                    row.innerHTML = `
-                        <td>${u.username}</td>
-                        <td>${u.role}</td>
-                        <td>${statusDisplay}</td>
-                        <td class="table-actions"><button class="delete-user-btn" data-id="${u.id}">Excluir</button></td>
-                    `;
-                });
-            }
-        } catch(error) {
-            console.error("Erro ao carregar usuários:", error);
-            alert("Não foi possível carregar os usuários.");
-        } finally { hideLoading(); }
-    };
+    // Gráficos
+    let graficoPeriodoCanvas = null;
+    let graficoEquipamentoCanvas = null;
+    let periodoGraficoSelect = null;
+    let tipoGraficoPeriodoSelect = null;
+    let gerarGraficoPeriodoBtn = null;
+    let tipoGraficoEquipamentoSelect = null;
+    let gerarGraficoEquipamentoBtn = null;
+    let graficoPeriodoChart = null;
+    let graficoEquipamentoChart = null;
+    let graficoSection = null;
     
-    const renderLogsTable = async () => {
-        console.log("Chamando renderLogsTable...");
-        showLoading();
-        try {
-            const snapshot = await logsCollection.orderBy('timestamp', 'desc').get();
-            const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const tbody = document.querySelector('#logsTable tbody');
-
-            if (!tbody) {
-                console.error("Elemento tbody para a tabela de logs não encontrado!");
-                return;
-            }
-
-            tbody.innerHTML = '';
-
-            if (logs.length === 0) {
-                console.log("Nenhum log encontrado no Firestore.");
-                const row = tbody.insertRow();
-                const cell = row.insertCell(0);
-                cell.textContent = "Nenhum log de atividade encontrado.";
-                cell.colSpan = 3;
-            } else {
-                console.log(`Encontrados ${logs.length} logs. Preenchendo tabela...`);
-                logs.forEach(log => {
-                    const row = tbody.insertRow();
-                    const timestamp = log.timestamp ? log.timestamp.toDate().toLocaleString('pt-BR') : '';
-                    row.innerHTML = `
-                        <td>${timestamp}</td>
-                        <td>${log.message}</td>
-                        <td>${log.action}</td>
-                    `;
-                });
-            }
-        } catch (error) {
-            console.error("Erro ao carregar logs:", error);
-            alert("Não foi possível carregar os logs.");
-        } finally {
-            hideLoading();
+    // Funções de inicialização
+    async function setupAdminUser() {
+        const adminSnapshot = await usersCollection.where('role', '==', 'admin').limit(1).get();
+        if (adminSnapshot.empty) {
+            const newAdminUser = { 
+                username: 'vitorfurtadoo', 
+                password: 'Biologo123!', 
+                role: 'admin', 
+                active: true, 
+                lastLogin: '' 
+            };
+            await usersCollection.add(newAdminUser);
+            console.log('Usuário administrador criado no Firestore.');
         }
-    };
-
-
-    const handleDeleteBeneficio = async (id) => {
-        if (!confirm("Tem certeza que deseja excluir este benefício?")) return;
-        showLoading();
-        try {
-            const benefDoc = await beneficiosCollection.doc(id).get();
-            const benefData = benefDoc.data();
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-            
-            await beneficiosCollection.doc(id).delete();
-            alert("Benefício excluído com sucesso!");
-            logActivity(currentUser.id, `Excluiu o benefício ${id} de ${benefData.beneficiario}`, 'delete_beneficio');
-            fetchBeneficios();
-        } catch (error) {
-            console.error("Erro ao excluir benefício:", error);
-            alert("Não foi possível excluir o benefício.");
-        } finally {
-            hideLoading();
-        }
-    };
-
-    document.getElementById('beneficiosTable')?.addEventListener('click', async (e) => {
-        const id = e.target.dataset.id;
-        if (e.target.classList.contains('edit-btn')) {
-            showLoading();
-            try {
-                const doc = await beneficiosCollection.doc(id).get();
-                if (!doc.exists) throw new Error("Documento não encontrado");
-                const data = doc.data();
-                document.getElementById('editIndex').value = id;
-                Object.keys(data).forEach(key => {
-                    const el = document.getElementById(`edit-${key}`);
-                    if(el) el.value = data[key];
-                });
-                showSection('editSection');
-            } catch (error) {
-                console.error("Erro ao abrir formulário:", error);
-                alert("Não foi possível abrir o formulário.");
-            } finally { hideLoading(); }
-        } else if (e.target.classList.contains('delete-btn')) {
-             handleDeleteBeneficio(id);
-        }
-    });
-
-    document.getElementById('usersTable')?.addEventListener('click', async (e) => {
-        const id = e.target.dataset.id;
-        if (e.target.classList.contains('delete-user-btn')) {
-            if (!confirm("Deseja realmente excluir?")) return;
-            try {
-                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-                if (currentUser.role !== 'admin') {
-                    alert('Você não tem permissão para excluir usuários.');
-                    return;
-                }
-                await usersCollection.doc(id).delete();
-                alert("Usuário excluído!");
-                logActivity(currentUser.id, `Excluiu o usuário ${id}`, 'delete_user');
-                renderUsersTable();
-            } catch(error) {
-                console.error(error);
-                alert("Erro ao excluir usuário.");
-            }
-        }
-    });
-
-    const handleExportDisabled = () => {
-        alert("A funcionalidade de exportação de planilha está em desenvolvimento.");
-    };
-    const exportButton = document.getElementById('btn-exportar-csv');
-    if (exportButton) {
-        exportButton.addEventListener('click', handleExportDisabled);
     }
 
-    let chartPeriodo = null;
-    let chartEquipamento = null;
-    
-    const benefitColors = {
-        'Auxilio Natalidade (Kit Enxoval)': 'rgba(56, 161, 105, 0.8)',
-        'Auxilio Alimentação (Cesta Básica)': 'rgba(74, 85, 104, 0.8)',
-        'Auxilio Funeral': 'rgba(102, 126, 234, 0.8)',
-        'Auxilio Transporte (Passagens)': 'rgba(246, 173, 85, 0.8)',
-        'Alugel Social': 'rgba(229, 62, 62, 0.8)'
+    function saveCurrentUser(user) {
+        localStorage.setItem('currentUser', JSON.stringify(user));
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value;
+        const password = document.getElementById('login-password').value;
+
+        const userSnapshot = await usersCollection
+            .where('username', '==', username)
+            .where('password', '==', password)
+            .get();
+
+        if (!userSnapshot.empty) {
+            const userDoc = userSnapshot.docs[0];
+            const user = { id: userDoc.id, ...userDoc.data() };
+            if (user.active) {
+                user.lastLogin = new Date().toLocaleString('pt-BR');
+                await usersCollection.doc(user.id).update({ lastLogin: user.lastLogin });
+                saveCurrentUser(user);
+                window.location.href = 'index.html';
+            } else {
+                alert('Sua conta está desativada. Entre em contato com o administrador.');
+            }
+        } else {
+            alert('Login ou senha incorretos.');
+        }
+    }
+
+    // Lógica para cada página
+    function initMainPage() {
+        form = document.getElementById('beneficioForm');
+        editForm = document.getElementById('editForm');
+        adminForm = document.getElementById('adminForm');
+        equipamentoSelect = document.getElementById('equipamento');
+        responsavelGroup = document.getElementById('responsavelGroup');
+        responsavelInput = document.getElementById('responsavel');
+        tableBody = document.querySelector('#beneficiosTable tbody');
+        menuButtons = document.querySelectorAll('.menu-btn');
+        backButtons = document.querySelectorAll('.back-btn');
+        filterBtn = document.getElementById('btn-filtrar');
+        clearFilterBtn = document.getElementById('btn-limpar');
+        separateBtn = document.getElementById('btn-separar');
+        exportBtn = document.getElementById('btn-exportar-csv');
+        logoutBtn = document.getElementById('logout-btn');
+        graficoPeriodoCanvas = document.getElementById('grafico-periodo');
+        graficoEquipamentoCanvas = document.getElementById('grafico-equipamento');
+        periodoGraficoSelect = document.getElementById('periodo-grafico');
+        tipoGraficoPeriodoSelect = document.getElementById('tipo-grafico-periodo');
+        gerarGraficoPeriodoBtn = document.getElementById('gerar-grafico-periodo');
+        tipoGraficoEquipamentoSelect = document.getElementById('tipo-grafico-equipamento');
+        gerarGraficoEquipamentoBtn = document.getElementById('gerar-grafico-equipamento');
+        graficoSection = document.getElementById('graficosSection');
+
+        setupMainPageEventListeners();
+        checkLoginStatus();
+    }
+
+    function initLoginPage() {
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', handleLogin);
+        }
+        const signupBtn = document.getElementById('signup-btn');
+        if (signupBtn) {
+            signupBtn.addEventListener('click', showContactInfo);
+        }
+        setupAdminUser(); // Garante que o admin seja criado na primeira visita
+    }
+
+    function setupMainPageEventListeners() {
+        menuButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                showSection(button.dataset.section);
+            });
+        });
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                showSection(button.dataset.section);
+            });
+        });
+        if (form) { form.addEventListener('submit', handleFormSubmit); }
+        if (editForm) {
+            editForm.addEventListener('submit', handleEditFormSubmit);
+            document.querySelector('.delete-btn-edit').addEventListener('click', deleteBeneficio);
+        }
+        if (adminForm) { adminForm.addEventListener('submit', handleAdminFormSubmit); }
+        if (equipamentoSelect) { equipamentoSelect.addEventListener('change', toggleResponsavelField); }
+        if (filterBtn) { filterBtn.addEventListener('click', applyFilters); }
+        if (clearFilterBtn) { clearFilterBtn.addEventListener('click', clearFilters); }
+        if (separateBtn) { separateBtn.addEventListener('click', toggleDateSeparation); }
+        if (exportBtn) { exportBtn.addEventListener('click', exportarCSV); }
+        if (logoutBtn) { logoutBtn.addEventListener('click', handleLogout); }
+        if (gerarGraficoPeriodoBtn) { gerarGraficoPeriodoBtn.addEventListener('click', gerarGraficoBeneficiosPorPeriodo); }
+        if (gerarGraficoEquipamentoBtn) { gerarGraficoEquipamentoBtn.addEventListener('click', gerarGraficoBeneficiosPorEquipamento); }
+    }
+
+    function handleLogout() {
+        localStorage.removeItem('currentUser');
+        window.location.href = 'login.html';
+    }
+
+    async function renderUsersTable() {
+        const usersTableBody = document.querySelector('#usersTable tbody');
+        usersTableBody.innerHTML = '';
+        const snapshot = await usersCollection.get();
+        const userList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        userList.forEach((user) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${user.username}</td>
+                <td>${user.role === 'admin' ? 'Administrador' : 'Usuário Comum'}</td>
+                <td>${user.lastLogin || 'Nunca'}</td>
+                <td>
+                    <button class="${user.active ? 'cancel-btn' : 'submit-btn'}" onclick="toggleUserStatus('${user.id}')">
+                        ${user.active ? 'Desativar' : 'Ativar'}
+                    </button>
+                    <button class="delete-btn" onclick="deleteUser('${user.id}')">Excluir</button>
+                </td>
+            `;
+            usersTableBody.appendChild(row);
+        });
+    }
+
+    window.toggleUserStatus = async function(userId) {
+        const userRef = usersCollection.doc(userId);
+        const userDoc = await userRef.get();
+        const user = userDoc.data();
+        
+        if (user.role === 'admin' && user.active && (await usersCollection.where('role', '==', 'admin').where('active', '==', true).get()).size === 1) {
+            alert('Não é possível desativar o único administrador ativo.');
+            return;
+        }
+        await userRef.update({ active: !user.active });
+        renderUsersTable();
     };
-    const allBenefits = Object.keys(benefitColors);
-    
-    const gerarGraficoBeneficiosPorPeriodo = async () => {
-        showLoading();
-        try {
-            const filtroDataStart = document.getElementById('grafico-data-start').value;
-            const filtroDataEnd = document.getElementById('grafico-data-end').value;
-            const filtroPeriodo = document.getElementById('grafico-periodo-filtro').value;
-            const filtroStatus = document.getElementById('grafico-status-filtro').value;
-            const filtroBeneficio = document.getElementById('grafico-beneficio-filtro').value;
-            
-            let query = beneficiosCollection;
-            if (filtroStatus !== 'Todos') {
-                query = query.where('status', '==', filtroStatus);
-            }
-            if (filtroDataStart) {
-                query = query.where('data', '>=', filtroDataStart);
-            }
-            if (filtroDataEnd) {
-                query = query.where('data', '<=', filtroDataEnd);
-            }
-            
-            const snapshot = await query.get();
-            let allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            let quantidadeTotal = 0;
-            if (filtroStatus === 'Cedido' || filtroStatus === 'Todos') {
-                quantidadeTotal = allBeneficios
-                    .filter(b => b.status === 'Cedido')
-                    .reduce((sum, b) => sum + (b.quantidade || 0), 0);
-            }
+    window.deleteUser = async function(userId) {
+        const userRef = usersCollection.doc(userId);
+        const userDoc = await userRef.get();
+        const user = userDoc.data();
 
-            const dataAgrupada = {};
-            
-            allBeneficios.forEach(item => {
-                let periodo;
-                if (filtroPeriodo === 'trimestral') {
-                    const mes = new Date(item.data + 'T03:00:00').getMonth();
-                    periodo = `${new Date(item.data + 'T03:00:00').getFullYear()}-${Math.floor(mes / 3) + 1}º Trimestre`;
-                } else if (filtroPeriodo === 'semestral') {
-                    const mes = new Date(item.data + 'T03:00:00').getMonth();
-                    periodo = `${new Date(item.data + 'T03:00:00').getFullYear()}-${Math.floor(mes / 6) + 1}º Semestre`;
-                } else if (filtroPeriodo === 'anual') {
-                    periodo = new Date(item.data + 'T03:00:00').getFullYear().toString();
-                } else {
-                    periodo = item.data.substring(0, 7);
-                }
+        if (user.role === 'admin') {
+            alert('Não é possível excluir um administrador. Desative a conta, se necessário.');
+            return;
+        }
 
-                if (!dataAgrupada[periodo]) {
-                    dataAgrupada[periodo] = {};
-                }
-                dataAgrupada[periodo][item.beneficio] = (dataAgrupada[periodo][item.beneficio] || 0) + (item.quantidade || 1);
-                
-            });
-            
-            const labelsOrdenadas = Object.keys(dataAgrupada).sort();
-
-            const datasets = [];
-            const beneficiosParaGrafico = filtroBeneficio === 'Todos' ? allBenefits : [filtroBeneficio];
-            
-            beneficiosParaGrafico.forEach(beneficio => {
-                const data = labelsOrdenadas.map(periodo => dataAgrupada[periodo]?.[beneficio] || 0);
-                datasets.push({
-                    label: beneficio,
-                    data: data,
-                    backgroundColor: benefitColors[beneficio] || 'gray',
-                    borderColor: benefitColors[beneficio] || 'gray',
-                    borderWidth: 1
-                });
-            });
-
-            document.getElementById('total-valor-grafico').textContent = `Quantidade Total de Benefícios Cedidos: ${quantidadeTotal}`;
-
-            const ctx = document.getElementById('grafico-periodo').getContext('2d');
-            if (chartPeriodo) {
-                chartPeriodo.destroy();
-            }
-            chartPeriodo = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labelsOrdenadas,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    backgroundColor: 'white',
-                    scales: {
-                        x: { stacked: true },
-                        y: { 
-                            stacked: true,
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Quantidade'
-                            }
-                        }
-                    }
-                }
-            });
-
-            let legendaHtml = `<p>O gráfico de barras mostra a contagem de cada benefício por período, filtrados por status **'${filtroStatus}'**.</p>`;
-            document.getElementById('legenda-periodo').innerHTML = legendaHtml;
-
-        } catch (error) {
-            console.error("Erro ao gerar gráfico por período:", error);
-            alert("Não foi possível gerar o gráfico por período.");
-        } finally {
-            hideLoading();
+        if (confirm(`Tem certeza que deseja excluir o usuário ${user.username}?`)) {
+            await userRef.delete();
+            renderUsersTable();
         }
     };
     
-    const gerarGraficoBeneficiosPorEquipamento = async () => {
-        showLoading();
-        try {
-            const filtroStatus = document.getElementById('grafico-equipamento-status-filtro').value;
+    function showContactInfo() {
+        alert('Para cadastrar um novo login, entre em contato com Vitor Furtado da Vigilância SUAS pelo WhatsApp: (91) 99925-9834.');
+    }
 
-            let query = beneficiosCollection;
-            if (filtroStatus !== 'Todos') {
-                query = query.where('status', '==', filtroStatus);
+    function showSection(sectionId) {
+        document.querySelectorAll('.section, .main-menu-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        const targetSection = document.getElementById(sectionId);
+        if (targetSection) {
+            targetSection.classList.add('active');
+            if (sectionId === 'consultaSection') {
+                fetchBeneficios();
             }
-
-            const snapshot = await query.get();
-            const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            const dataPorEquipamento = allBeneficios.reduce((acc, item) => {
-                const equipamento = item.equipamento || 'Não especificado';
-                acc[equipamento] = (acc[equipamento] || 0) + 1;
-                return acc;
-            }, {});
-
-            const labels = Object.keys(dataPorEquipamento);
-            const data = labels.map(label => dataPorEquipamento[label]);
-            
-            const backgroundColors = [
-                'rgba(56, 161, 105, 0.8)',
-                'rgba(74, 85, 104, 0.8)',
-                'rgba(102, 126, 234, 0.8)',
-                'rgba(246, 173, 85, 0.8)',
-                'rgba(229, 62, 62, 0.8)',
-                'rgba(49, 130, 206, 0.8)'
-            ];
-
-            const ctx = document.getElementById('grafico-equipamento').getContext('2d');
-            if (chartEquipamento) {
-                chartEquipamento.destroy();
+            if (sectionId === 'adminSection') {
+                renderUsersTable();
             }
-            chartEquipamento = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: backgroundColors
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    backgroundColor: 'white',
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                        },
-                    }
-                }
-            });
-
-            let legendaHtml = `<p>O gráfico de pizza mostra a distribuição dos benefícios por equipamento, filtrado por status **'${filtroStatus}'**.</p><div class="legend-items">`;
-            labels.forEach((label, index) => {
-                legendaHtml += `<div class="legend-item">
-                                <span class="legend-color" style="background-color:${backgroundColors[index % backgroundColors.length]};"></span>
-                                <span>${label}</span>
-                            </div>`;
-            });
-            legendaHtml += `</div>`;
-            document.getElementById('legenda-equipamento').innerHTML = legendaHtml;
-
-
-        } catch (error) {
-            console.error("Erro ao gerar gráfico por equipamento:", error);
-            alert("Não foi possível gerar o gráfico por equipamento.");
-        } finally {
-            hideLoading();
+            if (sectionId === 'graficosSection') {
+                gerarGraficoBeneficiosPorPeriodo();
+                gerarGraficoBeneficiosPorEquipamento();
+            }
         }
-    };
+    }
 
-    const salvarGraficoComoImagem = (canvasId, titulo) => {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) {
-            console.error('Canvas com ID não encontrado:', canvasId);
+    function validarCPF(cpf) {
+        cpf = cpf.replace(/\D/g, '');
+        if (cpf.length !== 11 || /^([0-9])\1+$/.test(cpf)) return false;
+        let soma = 0;
+        for (let i = 0; i < 9; i++) soma += parseInt(cpf.charAt(i)) * (10 - i);
+        let resto = 11 - (soma % 11);
+        if (resto === 10 || resto === 11) resto = 0;
+        if (resto !== parseInt(cpf.charAt(9))) return false;
+        soma = 0;
+        for (let i = 0; i < 10; i++) soma += parseInt(cpf.charAt(i)) * (11 - i);
+        resto = 11 - (soma % 11);
+        if (resto === 10 || resto === 11) resto = 0;
+        return resto === parseInt(cpf.charAt(10));
+    }
+
+    function toggleResponsavelField() {
+        if (equipamentoSelect.value !== '') {
+            responsavelGroup.style.display = 'flex';
+            responsavelInput.setAttribute('required', 'required');
+        } else {
+            responsavelGroup.style.display = 'none';
+            responsavelInput.removeAttribute('required');
+        }
+    }
+    
+    async function fetchBeneficios() {
+        const snapshot = await beneficiosCollection.get();
+        const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderTable(allBeneficios);
+    }
+
+    async function handleFormSubmit(e) {
+        e.preventDefault();
+        const cpfInput = document.getElementById('cpf').value;
+        if (!validarCPF(cpfInput)) {
+            alert('CPF inválido!');
             return;
         }
         
+        const newBeneficio = {
+            beneficiario: form.beneficiario.value,
+            cpf: form.cpf.value,
+            data: form.data.value,
+            valor: form.valor.value,
+            beneficio: form.beneficio.value,
+            quantidade: form.quantidade.value,
+            equipamento: form.equipamento.value,
+            responsavel: form.responsavel ? form.responsavel.value : '',
+            status: form.status.value,
+            observacoes: form.observacoes.value,
+            lastUpdated: new Date().toLocaleString('pt-BR')
+        };
+        
+        await beneficiosCollection.add(newBeneficio);
+        form.reset();
+        if (responsavelGroup) {
+            responsavelGroup.style.display = 'none';
+            responsavelInput.removeAttribute('required');
+        }
+        alert('Benefício cadastrado com sucesso!');
+        showSection('consultaSection');
+    }
+
+    async function handleEditFormSubmit(e) {
+        e.preventDefault();
+        const docId = document.getElementById('editIndex').value;
+        const formEdit = document.getElementById('editForm');
+        
+        const updatedBeneficio = {
+            beneficiario: formEdit['edit-beneficiario'].value,
+            cpf: formEdit['edit-cpf'].value,
+            data: formEdit['edit-data'].value,
+            valor: formEdit['edit-valor'].value,
+            beneficio: formEdit['edit-beneficio'].value,
+            quantidade: formEdit['edit-quantidade'].value,
+            equipamento: formEdit['edit-equipamento'].value,
+            responsavel: formEdit['edit-responsavel'].value,
+            status: formEdit['edit-status'].value,
+            observacoes: formEdit['edit-observacoes'].value,
+            lastUpdated: new Date().toLocaleString('pt-BR')
+        };
+    
+        if (!validarCPF(updatedBeneficio.cpf)) {
+            alert('CPF inválido!');
+            return;
+        }
+
+        await beneficiosCollection.doc(docId).update(updatedBeneficio);
+        alert('Registro atualizado com sucesso!');
+        showSection('consultaSection');
+    }
+
+    async function deleteBeneficio() {
+        const docId = document.getElementById('editIndex').value;
+        if (confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) {
+            await beneficiosCollection.doc(docId).delete();
+            alert('Registro excluído com sucesso!');
+            showSection('consultaSection');
+        }
+    }
+    
+    function renderTable(dataToRender) {
+        if (!tableBody) return;
+        tableBody.innerHTML = '';
+        dataToRender.forEach((beneficio) => {
+            const row = document.createElement('tr');
+            row.dataset.id = beneficio.id;
+            
+            const values = [
+                beneficio.beneficiario, beneficio.cpf, beneficio.data, beneficio.valor,
+                beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
+                beneficio.responsavel, beneficio.status, beneficio.observacoes,
+                beneficio.lastUpdated,
+            ];
+            
+            values.forEach(value => {
+                const cell = document.createElement('td');
+                cell.textContent = value;
+                row.appendChild(cell);
+            });
+
+            const actionsCell = document.createElement('td');
+            actionsCell.innerHTML = `<button class="edit-btn" onclick="openEditForm(this)">Editar</button>`;
+            row.appendChild(actionsCell);
+            tableBody.appendChild(row);
+        });
+    }
+    
+    window.openEditForm = async function(button) {
+        const row = button.closest('tr');
+        const docId = row.dataset.id;
+        const doc = await beneficiosCollection.doc(docId).get();
+        const beneficio = doc.data();
+
+        document.getElementById('editIndex').value = docId;
+        document.getElementById('edit-beneficiario').value = beneficio.beneficiario;
+        document.getElementById('edit-cpf').value = beneficio.cpf;
+        document.getElementById('edit-data').value = beneficio.data;
+        document.getElementById('edit-valor').value = beneficio.valor;
+        document.getElementById('edit-beneficio').value = beneficio.beneficio;
+        document.getElementById('edit-quantidade').value = beneficio.quantidade;
+        document.getElementById('edit-equipamento').value = beneficio.equipamento;
+        document.getElementById('edit-responsavel').value = beneficio.responsavel;
+        document.getElementById('edit-status').value = beneficio.status;
+        document.getElementById('edit-observacoes').value = beneficio.observacoes;
+        
+        showSection('editSection');
+    };
+
+    async function applyFilters() {
+        let query = beneficiosCollection;
+        const filterBeneficio = document.getElementById('filter-beneficio').value;
+        const filterEquipamento = document.getElementById('filter-equipamento').value;
+        const filterStatus = document.getElementById('filter-status').value;
+        const filterData = document.getElementById('filter-data').value;
+        
+        if (filterBeneficio) query = query.where('beneficio', '==', filterBeneficio);
+        if (filterEquipamento) query = query.where('equipamento', '==', filterEquipamento);
+        if (filterStatus) query = query.where('status', '==', filterStatus);
+        if (filterData) query = query.where('data', '==', filterData);
+        
+        const snapshot = await query.get();
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderTable(data);
+    }
+
+    function clearFilters() {
+        document.getElementById('filter-beneficio').value = '';
+        document.getElementById('filter-equipamento').value = '';
+        document.getElementById('filter-status').value = '';
+        document.getElementById('filter-data').value = '';
+        fetchBeneficios();
+    }
+
+    async function toggleDateSeparation() {
+        const isSeparated = tableBody.querySelectorAll('.date-separator').length > 0;
+        const snapshot = await beneficiosCollection.get();
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        if (isSeparated) {
+            renderTable(data);
+        } else {
+            const sortedBeneficios = [...data].sort((a, b) => new Date(a.data) - new Date(b.data));
+            const groupedByDate = {};
+            sortedBeneficios.forEach(beneficio => {
+                const date = beneficio.data;
+                if (!groupedByDate[date]) { groupedByDate[date] = []; }
+                groupedByDate[date].push(beneficio);
+            });
+            tableBody.innerHTML = '';
+            for (const date in groupedByDate) {
+                const dateRow = document.createElement('tr');
+                const dateCell = document.createElement('td');
+                dateCell.colSpan = 12;
+                dateCell.className = 'date-separator';
+                dateCell.textContent = `Registros em ${date.split('-').reverse().join('/')}`;
+                dateRow.appendChild(dateCell);
+                tableBody.appendChild(dateRow);
+                groupedByDate[date].forEach(beneficio => {
+                    const row = document.createElement('tr');
+                    row.dataset.id = beneficio.id;
+                    const values = [
+                        beneficio.beneficiario, beneficio.cpf, beneficio.data, beneficio.valor,
+                        beneficio.beneficio, beneficio.quantidade, beneficio.equipamento,
+                        beneficio.responsavel, beneficio.status, beneficio.observacoes,
+                        beneficio.lastUpdated,
+                    ];
+                    values.forEach(value => {
+                        const cell = document.createElement('td');
+                        cell.textContent = value;
+                        row.appendChild(cell);
+                    });
+                    const actionsCell = document.createElement('td');
+                    actionsCell.innerHTML = `<button class="edit-btn" onclick="openEditForm(this)">Editar</button>`;
+                    row.appendChild(actionsCell);
+                    tableBody.appendChild(row);
+                });
+            }
+        }
+    }
+
+    async function exportarCSV() {
+        const snapshot = await beneficiosCollection.get();
+        const sortedData = snapshot.docs.map(doc => doc.data()).sort((a, b) => new Date(a.data) - new Date(b.data));
+
+        if (sortedData.length === 0) {
+            alert("Nenhum dado para exportar.");
+            return;
+        }
+        
+        const headers = [
+            "Beneficiário", "CPF", "Data", "Valor", "Benefício", "Quantidade", 
+            "Equipamento", "Técnico Responsável pela Concessão", "Status", "Observações", "Última Atualização"
+        ];
+        const csvHeaders = headers.map(header => `"${header}"`).join(',');
+        
+        const csvRows = sortedData.map(beneficio => {
+            return headers.map(header => {
+                let value = beneficio[header];
+                let cleanedValue = String(value || '').replace(/"/g, '""');
+                return `"${cleanedValue}"`;
+            }).join(',');
+        });
+        
+        const csvContent = `${csvHeaders}\n${csvRows.join('\n')}`;
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
-        link.href = canvas.toDataURL('image/png');
-        link.download = `${titulo}.png`;
+        link.href = URL.createObjectURL(blob);
+        link.download = 'beneficios_eventuais.csv';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    };
+    }
 
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            console.log("Usuário autenticado. Verificando dados...");
-            db.collection('users').doc(user.uid).get().then(userDoc => {
-                if (userDoc.exists) {
-                    const userData = userDoc.data();
-                    localStorage.setItem('currentUser', JSON.stringify({ id: user.uid, ...userData }));
-                    console.log("Dados do usuário sincronizados. Inicializando a aplicação...");
-                    
-                    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-                    const welcomeMessage = document.getElementById('welcome-message');
-                    if (welcomeMessage) welcomeMessage.textContent = `Bem-vindo(a), ${currentUser.username}!`;
-
-                    const adminButton = document.getElementById('adminMenuButton');
-                    if (adminButton && currentUser.role === 'admin') adminButton.style.display = 'flex';
-                    
-                    const logsButton = document.getElementById('logsMenuButton');
-                    if (logsButton && currentUser.role === 'admin') logsButton.style.display = 'flex';
-
-                    document.querySelectorAll('.menu-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
-                    document.querySelectorAll('.back-btn').forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.section)));
-                    document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
-                    document.getElementById('beneficioForm')?.addEventListener('submit', handleFormSubmit);
-                    document.getElementById('editForm')?.addEventListener('submit', handleEditFormSubmit);
-
-                    document.getElementById('gerar-grafico-periodo')?.addEventListener('click', gerarGraficoBeneficiosPorPeriodo);
-                    document.getElementById('gerar-grafico-equipamento')?.addEventListener('click', gerarGraficoBeneficiosPorEquipamento);
-                    document.getElementById('salvar-imagem-periodo')?.addEventListener('click', () => salvarGraficoComoImagem('grafico-periodo', 'Benefícios-por-Período'));
-                    document.getElementById('salvar-imagem-equipamento')?.addEventListener('click', () => salvarGraficoComoImagem('grafico-equipamento', 'Benefícios-por-Equipamento'));
-
-                    document.getElementById('grafico-periodo-filtro')?.addEventListener('change', gerarGraficoBeneficiosPorPeriodo);
-                    document.getElementById('grafico-status-filtro')?.addEventListener('change', gerarGraficoBeneficiosPorPeriodo);
-                    
-                    document.getElementById('grafico-beneficio-filtro')?.addEventListener('change', gerarGraficoBeneficiosPorPeriodo);
-                    
-                    document.getElementById('grafico-equipamento-status-filtro')?.addEventListener('change', gerarGraficoBeneficiosPorEquipamento);
-
-                    showSection('mainMenu');
-                } else {
-                    console.error("Documento de usuário não encontrado no Firestore. Deslogando.");
-                    auth.signOut();
-                    localStorage.removeItem('currentUser');
-                    window.location.href = 'login.html';
-                }
-            }).catch(error => {
-                console.error("Erro ao buscar documento do usuário:", error);
-                auth.signOut();
-                localStorage.removeItem('currentUser');
-                window.location.href = 'login.html';
-            });
-        } else {
-            console.log("Nenhum usuário logado. Redirecionando.");
-            window.location.href = 'login.html';
-        }
-    });
+    const currentPath = window.location.pathname;
+    if (currentPath.endsWith('login.html') || currentPath === '/') {
+        initLoginPage();
+    } else {
+        initMainPage();
+    }
 });
