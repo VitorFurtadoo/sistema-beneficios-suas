@@ -224,9 +224,9 @@ Para dúvidas, sugestões ou relatos de problemas:
 ---
 
 **Versão**: 1.0  
-**Data**: 2024  
+**Data**: 2025  
 **Desenvolvido por**: Vitor Furtado  
 **Organização**: Vigilância SUAS Paragominas  
 **Cliente**: SEMDES - Secretaria Municipal de Desenvolvimento Social  
 
-© 2024 Vitor Furtado | Vigilância SUAS Paragominas | Todos os direitos reservados
+© 2025 Vitor Furtado | Vigilância SUAS Paragominas | Todos os direitos reservados

@@ -528,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Sistema de Benefícios Eventuais - SEMDES Paragominas
             </p>
             <p style="font-size: 9px; color: #888; font-style: italic; margin-top: 5px;">
-                © 2024 Desenvolvido por Vitor Furtado | Vigilância SUAS Paragominas | Todos os direitos reservados
+                © 2025 Desenvolvido por Vitor Furtado | Vigilância SUAS Paragominas | Todos os direitos reservados
             </p>
         </body>
         </html>`;
