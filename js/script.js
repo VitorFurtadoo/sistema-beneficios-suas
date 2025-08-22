@@ -550,6 +550,58 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(link);
     };
 
+    const applyConsultaFilters = async () => {
+        showLoading();
+        try {
+            const snapshot = await beneficiosCollection.orderBy('data', 'desc').get();
+            let allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const dataStart = document.getElementById('filter-data-start').value;
+            const dataEnd = document.getElementById('filter-data-end').value;
+            const status = document.getElementById('filter-status').value;
+            const equipamento = document.getElementById('filter-equipamento').value;
+            const beneficio = document.getElementById('filter-beneficio').value;
+
+            let filteredBeneficios = allBeneficios;
+
+            if (dataStart) {
+                filteredBeneficios = filteredBeneficios.filter(b => b.data >= dataStart);
+            }
+
+            if (dataEnd) {
+                filteredBeneficios = filteredBeneficios.filter(b => b.data <= dataEnd);
+            }
+
+            if (status) {
+                filteredBeneficios = filteredBeneficios.filter(b => b.status === status);
+            }
+
+            if (equipamento) {
+                filteredBeneficios = filteredBeneficios.filter(b => b.equipamento === equipamento);
+            }
+
+            if (beneficio) {
+                filteredBeneficios = filteredBeneficios.filter(b => b.beneficio === beneficio);
+            }
+
+            renderTable(filteredBeneficios);
+        } catch (error) {
+            console.error("Erro ao aplicar filtros:", error);
+            alert("Não foi possível aplicar os filtros.");
+        } finally {
+            hideLoading();
+        }
+    };
+
+    const clearConsultaFilters = () => {
+        document.getElementById('filter-data-start').value = '';
+        document.getElementById('filter-data-end').value = '';
+        document.getElementById('filter-status').value = '';
+        document.getElementById('filter-equipamento').value = '';
+        document.getElementById('filter-beneficio').value = '';
+        fetchBeneficios();
+    };
+
     auth.onAuthStateChanged(user => {
         if (user) {
             console.log("Usuário autenticado. Verificando dados...");
@@ -586,6 +638,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('grafico-beneficio-filtro')?.addEventListener('change', gerarGraficoBeneficiosPorPeriodo);
                     
                     document.getElementById('grafico-equipamento-status-filtro')?.addEventListener('change', gerarGraficoBeneficiosPorEquipamento);
+
+                    document.getElementById('apply-filters-btn')?.addEventListener('click', applyConsultaFilters);
+                    document.getElementById('clear-filters-btn')?.addEventListener('click', clearConsultaFilters);
 
                     showSection('mainMenu');
                 } else {
