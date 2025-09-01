@@ -121,12 +121,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    let currentPage = 1;
+    let allBeneficiosData = [];
+    const itemsPerPage = 20;
+    
     const fetchBeneficios = async () => {
         showLoading();
         try {
-            const snapshot = await beneficiosCollection.orderBy('data', 'desc').get();
-            const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderTable(allBeneficios);
+            const snapshot = await beneficiosCollection.orderBy('lastUpdated', 'desc').get();
+            allBeneficiosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            currentPage = 1; // Reset para primeira página
+            renderTable(allBeneficiosData);
         } catch (error) {
             console.error("Erro ao buscar benefícios:", error);
             alert("Não foi possível carregar os benefícios.");
@@ -136,8 +141,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderTable = (data) => {
         const tableBody = document.querySelector('#beneficiosTable tbody');
         if (!tableBody) return;
+        
+        // Calcular paginação
+        const totalItems = data.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const currentData = data.slice(startIndex, endIndex);
+        
+        // Limpar tabela
         tableBody.innerHTML = '';
-        data.forEach(b => {
+        
+        // Renderizar dados da página atual
+        currentData.forEach(b => {
             const row = tableBody.insertRow();
             row.dataset.id = b.id;
             const dataObj = new Date(b.data + 'T03:00:00');
@@ -161,6 +177,89 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
             `;
         });
+        
+        // Renderizar controles de paginação
+        renderPaginationControls(totalPages, totalItems);
+    };
+
+    const renderPaginationControls = (totalPages, totalItems) => {
+        let paginationDiv = document.getElementById('pagination-controls');
+        if (!paginationDiv) {
+            paginationDiv = document.createElement('div');
+            paginationDiv.id = 'pagination-controls';
+            paginationDiv.className = 'pagination-controls';
+            paginationDiv.style.cssText = 'margin-top: 20px; text-align: center; display: flex; justify-content: center; align-items: center; gap: 10px;';
+            
+            const table = document.getElementById('beneficiosTable');
+            if (table && table.parentNode) {
+                table.parentNode.insertBefore(paginationDiv, table.nextSibling);
+            }
+        }
+
+        paginationDiv.innerHTML = '';
+
+        // Informações da página
+        const startItem = (currentPage - 1) * itemsPerPage + 1;
+        const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+        
+        const infoSpan = document.createElement('span');
+        infoSpan.textContent = `Página ${currentPage} de ${totalPages} | Mostrando ${startItem}-${endItem} de ${totalItems} registros`;
+        infoSpan.style.cssText = 'margin-right: 20px; color: #666; font-size: 14px; font-weight: bold;';
+        paginationDiv.appendChild(infoSpan);
+
+        // Botão Anterior
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = '« Anterior';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.style.cssText = 'padding: 8px 16px; margin: 0 5px; border: 1px solid #ddd; background: #f5f5f5; cursor: pointer; border-radius: 4px;';
+        if (prevBtn.disabled) {
+            prevBtn.style.opacity = '0.5';
+            prevBtn.style.cursor = 'not-allowed';
+        }
+        prevBtn.onclick = () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable(allBeneficiosData);
+            }
+        };
+        paginationDiv.appendChild(prevBtn);
+
+        // Números das páginas
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+        if (endPage - startPage < maxVisiblePages - 1) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.textContent = i;
+            pageBtn.style.cssText = `padding: 8px 12px; margin: 0 2px; border: 1px solid #ddd; cursor: pointer; border-radius: 4px; ${i === currentPage ? 'background: #007bff; color: white;' : 'background: #f5f5f5;'}`;
+            pageBtn.onclick = () => {
+                currentPage = i;
+                renderTable(allBeneficiosData);
+            };
+            paginationDiv.appendChild(pageBtn);
+        }
+
+        // Botão Próximo
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = 'Próximo »';
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.style.cssText = 'padding: 8px 16px; margin: 0 5px; border: 1px solid #ddd; background: #f5f5f5; cursor: pointer; border-radius: 4px;';
+        if (nextBtn.disabled) {
+            nextBtn.style.opacity = '0.5';
+            nextBtn.style.cursor = 'not-allowed';
+        }
+        nextBtn.onclick = () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable(allBeneficiosData);
+            }
+        };
+        paginationDiv.appendChild(nextBtn);
     };
 
     const handleFormSubmit = async (e) => {
@@ -312,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Erro ao carregar logs:", error);
-            // Silencioso - não mostrar alert para não incomodar o usuário
+
             const tbody = document.querySelector('#logsTable tbody');
             if (tbody) {
                 tbody.innerHTML = '';
@@ -571,6 +670,105 @@ document.addEventListener('DOMContentLoaded', () => {
     let chartPeriodo = null;
     let chartEquipamento = null;
     
+    // Função para criar tabela de valores dos gráficos
+    const createValuesTable = (tableId, data, labels, categories, labelType) => {
+        let tableContainer = document.getElementById(tableId);
+        if (!tableContainer) {
+            // Criar container da tabela se não existir
+            tableContainer = document.createElement('div');
+            tableContainer.id = tableId;
+            tableContainer.style.cssText = 'margin-top: 20px; overflow-x: auto;';
+            
+            // Inserir após o gráfico correspondente
+            const targetElement = tableId.includes('periodo') 
+                ? document.getElementById('grafico-periodo')?.parentNode
+                : document.getElementById('grafico-equipamento')?.parentNode;
+            
+            if (targetElement) {
+                targetElement.appendChild(tableContainer);
+            }
+        }
+
+        let tableHtml = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h4 style="color: #2d3748; margin: 0; font-size: 16px;">
+                    📊 Valores Detalhados do Gráfico
+                </h4>
+                <button onclick="toggleTable('${tableId}-content')" 
+                        style="padding: 8px 12px; background: #4299e1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                    Mostrar/Ocultar Tabela
+                </button>
+            </div>
+            <div id="${tableId}-content" style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #e2e8f0; display: none;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <thead>
+                        <tr style="background: #4a5568; color: white;">
+                            <th style="padding: 12px 15px; text-align: left; font-weight: 600;">${labelType}</th>`;
+
+        // Adicionar cabeçalhos para cada categoria
+        if (Array.isArray(categories)) {
+            categories.forEach(category => {
+                tableHtml += `<th style="padding: 12px 15px; text-align: center; font-weight: 600;">${category}</th>`;
+            });
+            tableHtml += `<th style="padding: 12px 15px; text-align: center; font-weight: 600; background: #2d3748;">Total</th>`;
+        } else {
+            tableHtml += `<th style="padding: 12px 15px; text-align: center; font-weight: 600;">Quantidade</th>`;
+        }
+
+        tableHtml += `</tr></thead><tbody>`;
+
+        // Preencher dados da tabela
+        labels.forEach((label, index) => {
+            const isEven = index % 2 === 0;
+            const bgColor = isEven ? '#ffffff' : '#f7fafc';
+            
+            tableHtml += `<tr style="background: ${bgColor}; border-bottom: 1px solid #e2e8f0;">`;
+            tableHtml += `<td style="padding: 10px 15px; font-weight: 600; color: #2d3748;">${label}</td>`;
+
+            let rowTotal = 0;
+            if (Array.isArray(categories)) {
+                categories.forEach(category => {
+                    const value = data[label]?.[category] || 0;
+                    rowTotal += value;
+                    tableHtml += `<td style="padding: 10px 15px; text-align: center; color: #4a5568;">${value}</td>`;
+                });
+                tableHtml += `<td style="padding: 10px 15px; text-align: center; font-weight: 700; color: #2d3748; background: #edf2f7;">${rowTotal}</td>`;
+            } else {
+                const value = data[label] || 0;
+                tableHtml += `<td style="padding: 10px 15px; text-align: center; color: #4a5568; font-weight: 600;">${value}</td>`;
+            }
+
+            tableHtml += `</tr>`;
+        });
+
+        // Linha de totais (apenas para gráficos com múltiplas categorias)
+        if (Array.isArray(categories)) {
+            tableHtml += `<tr style="background: #2d3748; color: white; font-weight: 700;">`;
+            tableHtml += `<td style="padding: 12px 15px;">TOTAL GERAL</td>`;
+
+            let grandTotal = 0;
+            categories.forEach(category => {
+                const categoryTotal = labels.reduce((sum, label) => sum + (data[label]?.[category] || 0), 0);
+                grandTotal += categoryTotal;
+                tableHtml += `<td style="padding: 12px 15px; text-align: center;">${categoryTotal}</td>`;
+            });
+            tableHtml += `<td style="padding: 12px 15px; text-align: center; background: #1a202c;">${grandTotal}</td>`;
+            tableHtml += `</tr>`;
+        }
+
+        tableHtml += `</tbody></table></div>`;
+
+        tableContainer.innerHTML = tableHtml;
+    };
+    
+    // Função global para mostrar/ocultar tabelas
+    window.toggleTable = function(contentId) {
+        const content = document.getElementById(contentId);
+        if (content) {
+            content.style.display = content.style.display === 'none' ? 'block' : 'none';
+        }
+    };
+    
     const benefitColors = {
         'Auxilio Natalidade (Kit Enxoval)': 'rgba(56, 161, 105, 0.8)',
         'Auxilio Alimentação (Cesta Básica)': 'rgba(74, 85, 104, 0.8)',
@@ -583,54 +781,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const gerarGraficoBeneficiosPorPeriodo = async () => {
         showLoading();
         try {
-            const filtroDataStart = document.getElementById('grafico-data-start').value;
-            const filtroDataEnd = document.getElementById('grafico-data-end').value;
-            const filtroPeriodo = document.getElementById('grafico-periodo-filtro').value;
-            const filtroStatus = document.getElementById('grafico-status-filtro').value;
-            const filtroBeneficio = document.getElementById('grafico-beneficio-filtro').value;
+            const filtroDataStart = document.getElementById('grafico-data-start')?.value;
+            const filtroDataEnd = document.getElementById('grafico-data-end')?.value;
+            const filtroPeriodo = document.getElementById('grafico-periodo-filtro')?.value || 'mensal';
+            const filtroStatus = document.getElementById('grafico-status-filtro')?.value || 'Todos';
+            const filtroBeneficio = document.getElementById('grafico-beneficio-filtro')?.value || 'Todos';
             
-            let query = beneficiosCollection;
-            if (filtroStatus !== 'Todos') {
-                query = query.where('status', '==', filtroStatus);
-            }
-            if (filtroDataStart) {
-                query = query.where('data', '>=', filtroDataStart);
-            }
-            if (filtroDataEnd) {
-                query = query.where('data', '<=', filtroDataEnd);
-            }
-            
-            const snapshot = await query.get();
+            // Buscar todos os dados e filtrar no cliente para evitar problemas de índices compostos
+            const snapshot = await beneficiosCollection.get();
             let allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // Aplicar filtros no cliente
+            if (filtroStatus !== 'Todos') {
+                allBeneficios = allBeneficios.filter(b => b.status === filtroStatus);
+            }
+            
+            if (filtroDataStart) {
+                allBeneficios = allBeneficios.filter(b => b.data >= filtroDataStart);
+            }
+            
+            if (filtroDataEnd) {
+                allBeneficios = allBeneficios.filter(b => b.data <= filtroDataEnd);
+            }
 
             let quantidadeTotal = 0;
             if (filtroStatus === 'Cedido' || filtroStatus === 'Todos') {
                 quantidadeTotal = allBeneficios
                     .filter(b => b.status === 'Cedido')
-                    .reduce((sum, b) => sum + (b.quantidade || 0), 0);
+                    .reduce((sum, b) => sum + (parseInt(b.quantidade) || 0), 0);
             }
 
             const dataAgrupada = {};
             
             allBeneficios.forEach(item => {
+                // Verificar se item tem data válida
+                if (!item.data) return;
+                
                 let periodo;
-                if (filtroPeriodo === 'trimestral') {
-                    const mes = new Date(item.data + 'T03:00:00').getMonth();
-                    periodo = `${new Date(item.data + 'T03:00:00').getFullYear()}-${Math.floor(mes / 3) + 1}º Trimestre`;
-                } else if (filtroPeriodo === 'semestral') {
-                    const mes = new Date(item.data + 'T03:00:00').getMonth();
-                    periodo = `${new Date(item.data + 'T03:00:00').getFullYear()}-${Math.floor(mes / 6) + 1}º Semestre`;
-                } else if (filtroPeriodo === 'anual') {
-                    periodo = new Date(item.data + 'T03:00:00').getFullYear().toString();
-                } else {
-                    periodo = item.data.substring(0, 7);
+                try {
+                    const dataItem = new Date(item.data + 'T03:00:00');
+                    if (isNaN(dataItem.getTime())) return;
+                    
+                    if (filtroPeriodo === 'trimestral') {
+                        const mes = dataItem.getMonth();
+                        periodo = `${dataItem.getFullYear()}-${Math.floor(mes / 3) + 1}º Trimestre`;
+                    } else if (filtroPeriodo === 'semestral') {
+                        const mes = dataItem.getMonth();
+                        periodo = `${dataItem.getFullYear()}-${Math.floor(mes / 6) + 1}º Semestre`;
+                    } else if (filtroPeriodo === 'anual') {
+                        periodo = dataItem.getFullYear().toString();
+                    } else {
+                        // Default: mensal
+                        periodo = item.data.substring(0, 7);
+                    }
+                } catch (error) {
+                    console.warn('Erro ao processar data:', item.data, error);
+                    return;
                 }
 
                 if (!dataAgrupada[periodo]) {
                     dataAgrupada[periodo] = {};
                 }
-                dataAgrupada[periodo][item.beneficio] = (dataAgrupada[periodo][item.beneficio] || 0) + (item.quantidade || 1);
                 
+                const beneficio = item.beneficio || 'Não especificado';
+                const quantidade = parseInt(item.quantidade) || 1;
+                
+                dataAgrupada[periodo][beneficio] = (dataAgrupada[periodo][beneficio] || 0) + quantidade;
             });
             
             const labelsOrdenadas = Object.keys(dataAgrupada).sort();
@@ -649,12 +865,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            document.getElementById('total-valor-grafico').textContent = `Quantidade Total de Benefícios Cedidos: ${quantidadeTotal}`;
+            // Atualizar display do total
+            const totalElement = document.getElementById('total-valor-grafico');
+            if (totalElement) {
+                totalElement.textContent = `Quantidade Total de Benefícios Cedidos: ${quantidadeTotal}`;
+            }
 
-            const ctx = document.getElementById('grafico-periodo').getContext('2d');
+            // Verificar se o canvas existe
+            const canvasElement = document.getElementById('grafico-periodo');
+            if (!canvasElement) {
+                console.error('Elemento canvas "grafico-periodo" não encontrado');
+                alert('Erro: Elemento do gráfico não encontrado na página');
+                return;
+            }
+
+            const ctx = canvasElement.getContext('2d');
             if (chartPeriodo) {
                 chartPeriodo.destroy();
             }
+            
             chartPeriodo = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -679,7 +908,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             let legendaHtml = `<p>O gráfico de barras mostra a contagem de cada benefício por período, filtrados por status **'${filtroStatus}'**.</p>`;
-            document.getElementById('legenda-periodo').innerHTML = legendaHtml;
+            const legendaElement = document.getElementById('legenda-periodo');
+            if (legendaElement) {
+                legendaElement.innerHTML = legendaHtml;
+            }
+
+            // Criar tabela de valores detalhados
+            createValuesTable('valores-periodo-table', dataAgrupada, labelsOrdenadas, beneficiosParaGrafico, 'Período');
 
         } catch (error) {
             console.error("Erro ao gerar gráfico por período:", error);
@@ -692,15 +927,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const gerarGraficoBeneficiosPorEquipamento = async () => {
         showLoading();
         try {
-            const filtroStatus = document.getElementById('grafico-equipamento-status-filtro').value;
+            const filtroStatus = document.getElementById('grafico-equipamento-status-filtro')?.value || 'Todos';
 
-            let query = beneficiosCollection;
+            // Buscar todos os dados e filtrar no cliente
+            const snapshot = await beneficiosCollection.get();
+            let allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // Aplicar filtro de status no cliente
             if (filtroStatus !== 'Todos') {
-                query = query.where('status', '==', filtroStatus);
+                allBeneficios = allBeneficios.filter(b => b.status === filtroStatus);
             }
-
-            const snapshot = await query.get();
-            const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             const dataPorEquipamento = allBeneficios.reduce((acc, item) => {
                 const equipamento = item.equipamento || 'Não especificado';
@@ -711,6 +947,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const labels = Object.keys(dataPorEquipamento);
             const data = labels.map(label => dataPorEquipamento[label]);
             
+            // Verificar se há dados para exibir
+            if (labels.length === 0) {
+                alert('Nenhum dado encontrado para os filtros selecionados');
+                return;
+            }
+            
             const backgroundColors = [
                 'rgba(56, 161, 105, 0.8)',
                 'rgba(74, 85, 104, 0.8)',
@@ -720,10 +962,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 'rgba(49, 130, 206, 0.8)'
             ];
 
-            const ctx = document.getElementById('grafico-equipamento').getContext('2d');
+            // Verificar se o canvas existe
+            const canvasElement = document.getElementById('grafico-equipamento');
+            if (!canvasElement) {
+                console.error('Elemento canvas "grafico-equipamento" não encontrado');
+                alert('Erro: Elemento do gráfico por equipamento não encontrado na página');
+                return;
+            }
+
+            const ctx = canvasElement.getContext('2d');
             if (chartEquipamento) {
                 chartEquipamento.destroy();
             }
+            
             chartEquipamento = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
@@ -744,15 +995,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            let legendaHtml = `<p>O gráfico de pizza mostra a distribuição dos benefícios por equipamento, filtrado por status **'${filtroStatus}'**.</p><div class="legend-items">`;
+            // Atualizar legenda
+            const legendaElement = document.getElementById('legenda-equipamento');
+            if (legendaElement) {
+                let legendaHtml = `<p>O gráfico de pizza mostra a distribuição dos benefícios por equipamento, filtrado por status **'${filtroStatus}'**.</p><div class="legend-items">`;
+                labels.forEach((label, index) => {
+                    legendaHtml += `<div class="legend-item">
+                                    <span class="legend-color" style="background-color:${backgroundColors[index % backgroundColors.length]};"></span>
+                                    <span>${label}: ${data[index]} registro(s)</span>
+                                </div>`;
+                });
+                legendaHtml += `</div>`;
+                legendaElement.innerHTML = legendaHtml;
+            }
+
+            // Criar tabela de valores detalhados
+            const equipamentoData = {};
             labels.forEach((label, index) => {
-                legendaHtml += `<div class="legend-item">
-                                <span class="legend-color" style="background-color:${backgroundColors[index % backgroundColors.length]};"></span>
-                                <span>${label}</span>
-                            </div>`;
+                equipamentoData[label] = data[index];
             });
-            legendaHtml += `</div>`;
-            document.getElementById('legenda-equipamento').innerHTML = legendaHtml;
+            createValuesTable('valores-equipamento-table', equipamentoData, labels, null, 'Equipamento');
 
 
         } catch (error) {
@@ -781,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const applyConsultaFilters = async () => {
         showLoading();
         try {
-            const snapshot = await beneficiosCollection.orderBy('data', 'desc').get();
+            const snapshot = await beneficiosCollection.orderBy('lastUpdated', 'desc').get();
             let allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             const dataStart = document.getElementById('filter-data-start').value;
@@ -820,6 +1082,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 filteredBeneficios = filteredBeneficios.filter(b => b.beneficio === beneficio);
             }
 
+            // Atualizar dados globais e resetar página
+            allBeneficiosData = filteredBeneficios;
+            currentPage = 1;
             renderTable(filteredBeneficios);
             
             // Log da aplicação de filtros
@@ -1078,5 +1343,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Nenhum usuário logado. Redirecionando.");
             window.location.href = 'login.html';
         }
+
     });
 });
