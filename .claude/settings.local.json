@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(firebase --version)",
+      "Bash(firebase serve:*)",
+      "Bash(python:*)",
+      "Bash(node:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
