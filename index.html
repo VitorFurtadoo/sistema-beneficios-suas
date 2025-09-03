@@ -111,6 +111,14 @@
         
         <div class="filter-container">
             <div class="filter-group">
+                <label for="filter-nome">Nome:</label>
+                <input type="text" id="filter-nome" name="nome" placeholder="Digite o nome do beneficiário">
+            </div>
+            <div class="filter-group">
+                <label for="filter-cpf">CPF:</label>
+                <input type="text" id="filter-cpf" name="cpf" placeholder="000.000.000-00">
+            </div>
+            <div class="filter-group">
                 <label for="filter-data-start">De:</label>
                 <input type="date" id="filter-data-start" name="data-start">
             </div>
@@ -339,6 +347,25 @@
             </table>
         </div>
     </section>
+
+    <!-- Modal de confirmação para duplicatas -->
+    <div id="duplicateModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ Possível Duplicação Encontrada</h3>
+                <span class="close" id="closeDuplicateModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Encontramos cadastros existentes para este CPF e/ou nome:</p>
+                <div id="duplicateRecords"></div>
+                <p><strong>Deseja continuar com o cadastro?</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button id="confirmCadastro" class="submit-btn">Sim, Cadastrar Mesmo Assim</button>
+                <button id="cancelCadastro" class="secondary-btn">Cancelar</button>
+            </div>
+        </div>
+    </div>
 
     <footer class="app-footer">
         <div class="footer-content">

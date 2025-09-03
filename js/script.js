@@ -262,6 +262,79 @@ document.addEventListener('DOMContentLoaded', () => {
         paginationDiv.appendChild(nextBtn);
     };
 
+    // Função para verificar duplicatas
+    const checkForDuplicates = async (nome, cpf) => {
+        try {
+            const snapshot = await beneficiosCollection.get();
+            const allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            const duplicates = allBeneficios.filter(b => {
+                const sameNome = b.beneficiario && nome && 
+                    b.beneficiario.toLowerCase().trim() === nome.toLowerCase().trim();
+                const sameCpf = b.cpf && cpf && b.cpf === cpf;
+                
+                return sameNome || sameCpf;
+            });
+            
+            return duplicates;
+        } catch (error) {
+            console.error("Erro ao verificar duplicatas:", error);
+            return [];
+        }
+    };
+
+    // Função para mostrar modal de duplicatas
+    const showDuplicateModal = (duplicates, onConfirm, onCancel) => {
+        const modal = document.getElementById('duplicateModal');
+        const recordsDiv = document.getElementById('duplicateRecords');
+        
+        // Limpar registros anteriores
+        recordsDiv.innerHTML = '';
+        
+        // Adicionar registros encontrados
+        duplicates.forEach(record => {
+            const recordDiv = document.createElement('div');
+            recordDiv.className = 'duplicate-record';
+            recordDiv.innerHTML = `
+                <strong>Nome:</strong> ${record.beneficiario || 'Não informado'}<br>
+                <strong>CPF:</strong> ${record.cpf || 'Não informado'}<br>
+                <strong>Benefício:</strong> ${record.beneficio || 'Não informado'}<br>
+                <strong>Data:</strong> ${record.data || 'Não informado'}<br>
+                <strong>Status:</strong> ${record.status || 'Não informado'}
+            `;
+            recordsDiv.appendChild(recordDiv);
+        });
+        
+        // Mostrar modal
+        modal.style.display = 'flex';
+        
+        // Configurar event listeners
+        const confirmBtn = document.getElementById('confirmCadastro');
+        const cancelBtn = document.getElementById('cancelCadastro');
+        const closeBtn = document.getElementById('closeDuplicateModal');
+        
+        const handleConfirm = () => {
+            modal.style.display = 'none';
+            onConfirm();
+        };
+        
+        const handleCancel = () => {
+            modal.style.display = 'none';
+            onCancel();
+        };
+        
+        confirmBtn.onclick = handleConfirm;
+        cancelBtn.onclick = handleCancel;
+        closeBtn.onclick = handleCancel;
+        
+        // Fechar modal clicando fora dele
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                handleCancel();
+            }
+        };
+    };
+
     const handleFormSubmit = async (e) => {
         e.preventDefault();
         showLoading();
@@ -276,6 +349,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const formData = Object.fromEntries(new FormData(e.target).entries());
+            
+            // Verificar duplicatas
+            const duplicates = await checkForDuplicates(formData.beneficiario, formData.cpf);
+            
+            if (duplicates.length > 0) {
+                hideLoading();
+                
+                showDuplicateModal(
+                    duplicates,
+                    // onConfirm - continuar com cadastro
+                    async () => {
+                        showLoading();
+                        try {
+                            formData.lastUpdated = new Date().toLocaleString('pt-BR');
+                            await beneficiosCollection.add(formData);
+                            alert('Benefício cadastrado!');
+                            e.target.reset();
+                            showSection('consultaSection');
+                            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+                            logActivity(currentUser.id, `Cadastrou um novo benefício para ${formData.beneficiario} (com duplicatas ignoradas)`, 'create_beneficio');
+                        } catch(error) {
+                            console.error("Erro ao cadastrar:", error);
+                            alert("Falha ao cadastrar benefício.");
+                        } finally { 
+                            hideLoading(); 
+                        }
+                    },
+                    // onCancel - não fazer nada
+                    () => {
+                        console.log('Cadastro cancelado pelo usuário devido a duplicatas.');
+                    }
+                );
+                return;
+            }
+            
+            // Se não há duplicatas, continuar normalmente
             formData.lastUpdated = new Date().toLocaleString('pt-BR');
             await beneficiosCollection.add(formData);
             alert('Benefício cadastrado!');
@@ -1046,6 +1155,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const snapshot = await beneficiosCollection.orderBy('lastUpdated', 'desc').get();
             let allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+            const nome = document.getElementById('filter-nome').value.toLowerCase().trim();
+            const cpf = document.getElementById('filter-cpf').value.trim();
             const dataStart = document.getElementById('filter-data-start').value;
             const dataEnd = document.getElementById('filter-data-end').value;
             const status = document.getElementById('filter-status').value;
@@ -1053,6 +1164,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const beneficio = document.getElementById('filter-beneficio').value;
 
             const filterDetails = {
+                nome: nome || 'Não informado',
+                cpf: cpf || 'Não informado',
                 dataStart: dataStart || 'Não informado',
                 dataEnd: dataEnd || 'Não informado',
                 status: status || 'Todos',
@@ -1061,6 +1174,18 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             let filteredBeneficios = allBeneficios;
+
+            if (nome) {
+                filteredBeneficios = filteredBeneficios.filter(b => 
+                    (b.beneficiario || '').toLowerCase().includes(nome)
+                );
+            }
+
+            if (cpf) {
+                filteredBeneficios = filteredBeneficios.filter(b => 
+                    (b.cpf || '').includes(cpf)
+                );
+            }
 
             if (dataStart) {
                 filteredBeneficios = filteredBeneficios.filter(b => b.data >= dataStart);
@@ -1100,6 +1225,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const clearConsultaFilters = () => {
+        document.getElementById('filter-nome').value = '';
+        document.getElementById('filter-cpf').value = '';
         document.getElementById('filter-data-start').value = '';
         document.getElementById('filter-data-end').value = '';
         document.getElementById('filter-status').value = '';
