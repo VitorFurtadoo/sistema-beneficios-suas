@@ -1,0 +1,35 @@
+// Regras do Firestore sugeridas para permitir exclusão de benefícios
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Regras para coleção de benefícios
+    match /beneficios/{document} {
+      // Permitir leitura, escrita, atualização e exclusão para usuários autenticados
+      allow read, write, update, delete: if request.auth != null;
+    }
+    
+    // Regras para coleção de usuários
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null; // Permite admin ler todos os usuários
+    }
+    
+    // Regras para coleção de logs
+    match /logs/{document} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+// Alternativamente, regras mais permissivas para teste (NÃO usar em produção):
+/*
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+*/
