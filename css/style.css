@@ -416,11 +416,40 @@ hr {
 }
 
 /* ===== TABELAS ===== */
+/* Barra de rolagem superior */
+.top-scrollbar {
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin-top: 10px;
+    height: 25px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px 4px 0 0;
+    background-color: #f8f9fa;
+    position: relative;
+}
+
+.top-scrollbar::before {
+    content: "← Arraste para rolar horizontalmente →";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 11px;
+    color: #666;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.top-scroll-content {
+    height: 20px;
+    background-color: transparent;
+}
+
 .table-wrapper {
     overflow-x: auto;
-    margin-top: 24px;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
 }
 table {
     width: 100%;

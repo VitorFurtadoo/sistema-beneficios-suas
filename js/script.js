@@ -128,10 +128,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const fetchBeneficios = async () => {
         showLoading();
         try {
-            const snapshot = await beneficiosCollection.orderBy('lastUpdated', 'desc').get();
-            allBeneficiosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Buscar todos os dados sem ordenação para evitar problemas de índices
+            const snapshot = await beneficiosCollection.get();
+            let allData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // Ordenar no lado do cliente por lastUpdated (mais recente primeiro)
+            allData.sort((a, b) => {
+                // Usar timestamp numérico se disponível, caso contrário tratar como string de data
+                let timestampA, timestampB;
+                
+                if (typeof a.lastUpdated === 'number') {
+                    timestampA = a.lastUpdated;
+                } else if (a.lastUpdated) {
+                    timestampA = new Date(a.lastUpdated).getTime();
+                } else if (a.data) {
+                    timestampA = new Date(a.data).getTime();
+                } else {
+                    timestampA = 0;
+                }
+                
+                if (typeof b.lastUpdated === 'number') {
+                    timestampB = b.lastUpdated;
+                } else if (b.lastUpdated) {
+                    timestampB = new Date(b.lastUpdated).getTime();
+                } else if (b.data) {
+                    timestampB = new Date(b.data).getTime();
+                } else {
+                    timestampB = 0;
+                }
+                
+                return timestampB - timestampA; // Mais recente primeiro
+            });
+            
+            allBeneficiosData = allData;
             currentPage = 1; // Reset para primeira página
             renderTable(allBeneficiosData);
+            // Aguardar um frame para garantir que a tabela foi renderizada
+            setTimeout(syncScrollBars, 100);
         } catch (error) {
             console.error("Erro ao buscar benefícios:", error);
             alert("Não foi possível carregar os benefícios.");
@@ -170,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${b.responsavel || ''}</td>
                 <td>${b.status || ''}</td>
                 <td>${b.observacoes || ''}</td>
-                <td>${b.lastUpdated || ''}</td>
+                <td>${b.lastUpdatedDisplay || b.lastUpdated || ''}</td>
                 <td class="table-actions">
                     <button class="edit-btn" data-id="${b.id}">Editar</button>
                     <button class="delete-btn" data-id="${b.id}">Excluir</button>
@@ -178,8 +211,42 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         });
         
+        // Sincronizar as barras de rolagem horizontal
+        syncScrollBars();
+        
         // Renderizar controles de paginação
         renderPaginationControls(totalPages, totalItems);
+    };
+
+    // Função para sincronizar as barras de rolagem horizontal
+    const syncScrollBars = () => {
+        const topScrollbar = document.getElementById('top-scrollbar');
+        const tableWrapper = document.querySelector('.table-wrapper');
+        
+        if (!topScrollbar || !tableWrapper) return;
+        
+        // Remover event listeners existentes para evitar duplicação
+        topScrollbar.onscroll = null;
+        tableWrapper.onscroll = null;
+        
+        // Sincronizar a rolagem do topo com a tabela
+        topScrollbar.onscroll = function() {
+            tableWrapper.scrollLeft = topScrollbar.scrollLeft;
+        };
+        
+        // Sincronizar a rolagem da tabela com o topo
+        tableWrapper.onscroll = function() {
+            topScrollbar.scrollLeft = tableWrapper.scrollLeft;
+        };
+        
+        // Definir a largura do conteúdo da barra de rolagem do topo
+        const table = document.getElementById('beneficiosTable');
+        if (table) {
+            const topScrollContent = document.getElementById('top-scroll-content');
+            if (topScrollContent) {
+                topScrollContent.style.width = table.scrollWidth + 'px';
+            }
+        }
     };
 
     const renderPaginationControls = (totalPages, totalItems) => {
@@ -362,7 +429,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     async () => {
                         showLoading();
                         try {
-                            formData.lastUpdated = new Date().toLocaleString('pt-BR');
+                            formData.lastUpdated = Date.now(); // Timestamp para ordenação
+                            formData.lastUpdatedDisplay = new Date().toLocaleString('pt-BR'); // String para exibição
                             await beneficiosCollection.add(formData);
                             alert('Benefício cadastrado!');
                             e.target.reset();
@@ -385,7 +453,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             // Se não há duplicatas, continuar normalmente
-            formData.lastUpdated = new Date().toLocaleString('pt-BR');
+            formData.lastUpdated = Date.now(); // Timestamp para ordenação
+            formData.lastUpdatedDisplay = new Date().toLocaleString('pt-BR'); // String para exibição
             await beneficiosCollection.add(formData);
             alert('Benefício cadastrado!');
             e.target.reset();
@@ -413,7 +482,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const docId = document.getElementById('editIndex').value;
             const updated = Object.fromEntries(new FormData(e.target).entries());
-            updated.lastUpdated = new Date().toLocaleString('pt-BR');
+            updated.lastUpdated = Date.now(); // Timestamp para ordenação
+            updated.lastUpdatedDisplay = new Date().toLocaleString('pt-BR'); // String para exibição
             await beneficiosCollection.doc(docId).update(updated);
             alert('Registro atualizado!');
             showSection('consultaSection');
@@ -540,20 +610,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     const handleDeleteBeneficio = async (id) => {
+        console.log('Tentando excluir benefício com ID:', id);
+        
+        if (!id) {
+            console.error('ID do benefício não encontrado');
+            alert("Erro: ID do benefício não encontrado.");
+            return;
+        }
+        
         if (!confirm("Tem certeza que deseja excluir este benefício?")) return;
+        
         showLoading();
         try {
+            console.log('Buscando documento para exclusão...');
             const benefDoc = await beneficiosCollection.doc(id).get();
+            
+            if (!benefDoc.exists) {
+                console.error('Documento não encontrado:', id);
+                alert("Erro: Benefício não encontrado no banco de dados.");
+                return;
+            }
+            
             const benefData = benefDoc.data();
             const currentUser = JSON.parse(localStorage.getItem('currentUser'));
             
+            console.log('Excluindo documento...', id);
             await beneficiosCollection.doc(id).delete();
+            
+            console.log('Documento excluído com sucesso');
             alert("Benefício excluído com sucesso!");
-            logActivity(currentUser.id, `Excluiu o benefício ${id} de ${benefData.beneficiario}`, 'delete_beneficio');
+            
+            if (currentUser) {
+                logActivity(currentUser.id, `Excluiu o benefício ${id} de ${benefData?.beneficiario || 'N/A'}`, 'delete_beneficio');
+            }
+            
+            // Recarregar a tabela
             fetchBeneficios();
+            
         } catch (error) {
-            console.error("Erro ao excluir benefício:", error);
-            alert("Não foi possível excluir o benefício.");
+            console.error("Erro detalhado ao excluir benefício:", error);
+            console.error("Tipo do erro:", error.name);
+            console.error("Mensagem do erro:", error.message);
+            console.error("Código do erro:", error.code);
+            
+            let errorMessage = "Não foi possível excluir o benefício.";
+            
+            if (error.code === 'permission-denied') {
+                errorMessage = "Erro: Você não tem permissão para excluir este benefício.";
+            } else if (error.code === 'not-found') {
+                errorMessage = "Erro: Benefício não encontrado.";
+            } else if (error.code === 'unavailable') {
+                errorMessage = "Erro: Serviço temporariamente indisponível. Tente novamente.";
+            }
+            
+            alert(errorMessage);
         } finally {
             hideLoading();
         }
@@ -1152,8 +1262,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const applyConsultaFilters = async () => {
         showLoading();
         try {
-            const snapshot = await beneficiosCollection.orderBy('lastUpdated', 'desc').get();
+            // Buscar todos os dados sem ordenação
+            const snapshot = await beneficiosCollection.get();
             let allBeneficios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // Ordenar no lado do cliente por lastUpdated (mais recente primeiro)
+            allBeneficios.sort((a, b) => {
+                let timestampA, timestampB;
+                
+                if (typeof a.lastUpdated === 'number') {
+                    timestampA = a.lastUpdated;
+                } else if (a.lastUpdated) {
+                    timestampA = new Date(a.lastUpdated).getTime();
+                } else if (a.data) {
+                    timestampA = new Date(a.data).getTime();
+                } else {
+                    timestampA = 0;
+                }
+                
+                if (typeof b.lastUpdated === 'number') {
+                    timestampB = b.lastUpdated;
+                } else if (b.lastUpdated) {
+                    timestampB = new Date(b.lastUpdated).getTime();
+                } else if (b.data) {
+                    timestampB = new Date(b.data).getTime();
+                } else {
+                    timestampB = 0;
+                }
+                
+                return timestampB - timestampA;
+            });
 
             const nome = document.getElementById('filter-nome').value.toLowerCase().trim();
             const cpf = document.getElementById('filter-cpf').value.trim();
@@ -1211,6 +1349,9 @@ document.addEventListener('DOMContentLoaded', () => {
             allBeneficiosData = filteredBeneficios;
             currentPage = 1;
             renderTable(filteredBeneficios);
+            
+            // Sincronizar barras de rolagem após aplicar filtros
+            setTimeout(syncScrollBars, 100);
             
             // Log da aplicação de filtros
             const currentUser = JSON.parse(localStorage.getItem('currentUser'));
