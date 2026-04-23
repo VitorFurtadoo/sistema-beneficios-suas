@@ -48,6 +48,10 @@
                 <input type="text" name="cpf" placeholder="000.000.000-00" required>
             </div>
             <div class="form-group">
+                <label>Endereço</label>
+                <input type="text" name="endereco" placeholder="Rua, número, bairro" required>
+            </div>
+            <div class="form-group">
                 <label>Data</label>
                 <input type="date" name="data" required>
             </div>
@@ -147,7 +151,7 @@
                     <option value="Cras Nagibão">Cras Nagibão</option>
                     <option value="Abrigo de Idosos">Abrigo de Idosos</option>
                     <option value="Abrigo de Crianças">Abrigo de Crianças</option>
-                    <option value="Cadastro Unico">Cadastro Unico</option>
+                    <option value="Cadastro Único">Cadastro Único</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -175,7 +179,7 @@
             <table id="beneficiosTable">
                 <thead>
                     <tr>
-                        <th>Beneficiário</th><th>CPF</th><th>Data</th><th>Valor</th>
+                        <th>Beneficiário</th><th>CPF</th><th>Endereço</th><th>Data</th><th>Valor</th>
                         <th>Benefício</th><th>Qtd</th><th>Equipamento</th><th>Responsável</th>
                         <th>Status</th><th>Observações</th><th>Última Atualização</th><th>Ações</th>
                     </tr>
@@ -192,6 +196,7 @@
             <input type="hidden" id="editIndex">
             <div class="form-group"><label>Beneficiário</label><input type="text" id="edit-beneficiario" name="beneficiario" required></div>
             <div class="form-group"><label>CPF</label><input type="text" id="edit-cpf" name="cpf" required></div>
+            <div class="form-group"><label>Endereço</label><input type="text" id="edit-endereco" name="endereco" placeholder="Rua, número, bairro"></div>
             <div class="form-group"><label>Data</label><input type="date" id="edit-data" name="data" required></div>
             <div class="form-group"><label>Valor</label><input type="number" id="edit-valor" name="valor" min="0" step="0.01" required></div>
             <div class="form-group"><label>Benefício</label><input type="text" id="edit-beneficio" name="beneficio" required></div>
@@ -206,8 +211,32 @@
 
     <section id="graficosSection" class="section">
         <button class="back-btn" data-section="mainMenu">← Voltar</button>
-        <h2>Gráficos de Benefícios</h2>
-        
+        <h2>Dashboard de Benefícios</h2>
+        <p class="chart-description">Painel de indicadores com os benefícios mais usados, totais e gráficos de acompanhamento.</p>
+
+        <div id="dashboard-cards" class="dashboard-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div class="dashboard-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+                <span style="display: block; font-size: 13px; color: #718096; margin-bottom: 10px;">Total de Benefícios</span>
+                <strong id="card-total-beneficios" style="font-size: 32px; color: #2d3748;">0</strong>
+            </div>
+            <div class="dashboard-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+                <span style="display: block; font-size: 13px; color: #718096; margin-bottom: 10px;">Total de Benefícios Cedido</span>
+                <strong id="card-total-cedidos" style="font-size: 32px; color: #2d3748;">0</strong>
+            </div>
+            <div class="dashboard-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+                <span style="display: block; font-size: 13px; color: #718096; margin-bottom: 10px;">Benefício mais usado</span>
+                <strong id="card-top-beneficio" style="font-size: 24px; color: #2d3748;">-</strong>
+            </div>
+            <div class="dashboard-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+                <span style="display: block; font-size: 13px; color: #718096; margin-bottom: 10px;">Equipamento mais ativo</span>
+                <strong id="card-top-equipamento" style="font-size: 24px; color: #2d3748;">-</strong>
+            </div>
+            <div class="dashboard-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+                <span style="display: block; font-size: 13px; color: #718096; margin-bottom: 10px;">Benefício mais usado no mês</span>
+                <strong id="card-top-beneficio-mes" style="font-size: 24px; color: #2d3748;">-</strong>
+            </div>
+        </div>
+
         <div class="chart-box">
             <p class="chart-description">Gráfico de Barras: Exibe a quantidade de benefícios por período.</p>
             <div class="filter-container chart-filters">
@@ -249,8 +278,14 @@
                     </select>
                 </div>
             </div>
-            
+
+            <div class="graficos-container chart-container" id="grafico-top-beneficios-container" style="margin-top: 20px;">
+                <canvas id="grafico-top-beneficios"></canvas>
+            </div>
+            <div id="legenda-top-beneficios" class="chart-legend" style="margin-bottom: 20px;"></div>
+
             <p id="total-valor-grafico" class="valor-total"></p>
+            <div id="totais-por-beneficio" class="summary-box" style="margin-bottom: 20px;"></div>
 
             <div class="graficos-container chart-container" id="grafico-periodo-container">
                 <canvas id="grafico-periodo"></canvas>
